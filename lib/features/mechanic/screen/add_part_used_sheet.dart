@@ -1,6 +1,6 @@
-import 'package:auto_care_app/features/mechanic/controller/add_part_used_controller.dart';
+import 'dart:async';
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
@@ -16,28 +16,131 @@ import '../../../widgets/common/app_button.dart';
 ///   );
 /// On success, pop the sheet with `true` so the caller can refresh
 /// the job's parts list.
-class AddPartUsedSheet extends StatelessWidget {
+class AddPartUsedSheet extends StatefulWidget {
   const AddPartUsedSheet({super.key, required this.jobId});
 
   final int jobId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AddPartUsedController(jobId: jobId),
-      child: const _AddPartUsedView(),
-    );
-  }
+  State<AddPartUsedSheet> createState() => _AddPartUsedSheetState();
 }
 
-class _AddPartUsedView extends StatelessWidget {
-  const _AddPartUsedView();
+class _AddPartUsedSheetState extends State<AddPartUsedSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+
+  bool _isSearching = false;
+  List<dynamic> _searchResults = [];
+
+  Map<String, dynamic>? _selectedPart;
+  int _quantity = 1;
+
+  bool _isSubmitting = false;
+  String? _errorMessage;
+  bool _addedSuccessfully = false;
+
+  double get _availableStock =>
+      (_selectedPart?['stock_quantity'] as num?)?.toDouble() ?? 0;
+
+  bool get _exceedsStock =>
+      _selectedPart != null && _quantity > _availableStock;
+
+  double get _totalPrice =>
+      ((_selectedPart?['selling_price'] as num?)?.toDouble() ?? 0) *
+      _quantity;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Debounced so the service is not queried on every keystroke.
+  void _search(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(
+        const Duration(milliseconds: 300), () => _runSearch(query));
+  }
+
+  Future<void> _runSearch(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    setState(() => _isSearching = true);
+    try {
+      final results = await DemoRepository.instance
+          .searchSpareParts(query.trim());
+      if (!mounted) return;
+      setState(() => _searchResults = results);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _searchResults = []);
+    } finally {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
+  void _selectPart(Map<String, dynamic> part) {
+    setState(() {
+      _selectedPart = part;
+      _searchResults = [];
+      _searchController.text = part['name'] ?? '';
+      _quantity = 1;
+    });
+  }
+
+  void _incrementQuantity() {
+    setState(() => _quantity += 1);
+  }
+
+  void _decrementQuantity() {
+    if (_quantity > 1) {
+      setState(() => _quantity -= 1);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_selectedPart == null) {
+      setState(() => _errorMessage = 'Please select a part first');
+      return;
+    }
+    if (_exceedsStock) {
+      setState(() => _errorMessage = 'Not enough stock available');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.addPartUsed(
+        jobId: widget.jobId,
+        partId: _selectedPart!['id'] as int,
+        quantity: _quantity.toDouble(),
+      );
+      if (!mounted) return;
+      setState(() => _addedSuccessfully = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not add part. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AddPartUsedController>();
-
-    if (controller.addedSuccessfully) {
+    if (_addedSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) Navigator.of(context).pop(true);
       });
@@ -64,7 +167,8 @@ class _AddPartUsedView extends StatelessWidget {
                   Text('Add Part Used', style: AppTextStyles.heading3),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                    icon: const Icon(Icons.close,
+                        color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -72,18 +176,18 @@ class _AddPartUsedView extends StatelessWidget {
 
               // --- Search field ---
               TextField(
-                controller: controller.searchController,
+                controller: _searchController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                onChanged: (value) =>
-                    context.read<AddPartUsedController>().search(value),
+                onChanged: _search,
                 decoration: const InputDecoration(
                   hintText: 'Search spare parts...',
-                  prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
+                  prefixIcon:
+                      Icon(Icons.search, color: AppColors.textMuted),
                 ),
               ),
 
               // --- Search results dropdown ---
-              if (controller.isSearching)
+              if (_isSearching)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: Center(
@@ -95,7 +199,7 @@ class _AddPartUsedView extends StatelessWidget {
                     ),
                   ),
                 )
-              else if (controller.searchResults.isNotEmpty)
+              else if (_searchResults.isNotEmpty)
                 Container(
                   margin: const EdgeInsets.only(top: 8),
                   decoration: BoxDecoration(
@@ -106,9 +210,9 @@ class _AddPartUsedView extends StatelessWidget {
                   child: ListView.builder(
                     shrinkWrap: true,
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: controller.searchResults.length,
+                    itemCount: _searchResults.length,
                     itemBuilder: (context, index) {
-                      final part = controller.searchResults[index];
+                      final part = _searchResults[index];
                       return ListTile(
                         dense: true,
                         title: Text(part['name'] ?? '',
@@ -124,16 +228,14 @@ class _AddPartUsedView extends StatelessWidget {
                               color: AppColors.limeAccent,
                               fontWeight: FontWeight.bold),
                         ),
-                        onTap: () => context
-                            .read<AddPartUsedController>()
-                            .selectPart(part),
+                        onTap: () => _selectPart(part),
                       );
                     },
                   ),
                 ),
 
               // --- Selected part card ---
-              if (controller.selectedPart != null) ...[
+              if (_selectedPart != null) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(14),
@@ -149,12 +251,12 @@ class _AddPartUsedView extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              controller.selectedPart!['name'] ?? '',
+                              _selectedPart!['name'] ?? '',
                               style: AppTextStyles.bodyRegular
                                   .copyWith(fontWeight: FontWeight.bold),
                             ),
                             Text(
-                              '${controller.availableStock.toStringAsFixed(2)} ${controller.selectedPart!['unit'] ?? ''} available',
+                              '${_availableStock.toStringAsFixed(2)} ${_selectedPart!['unit'] ?? ''} available',
                               style: AppTextStyles.caption,
                             ),
                           ],
@@ -168,40 +270,37 @@ class _AddPartUsedView extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 Text('Quantity',
-                    style: AppTextStyles.caption.copyWith(letterSpacing: 0.5)),
+                    style: AppTextStyles.caption
+                        .copyWith(letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     _QtyButton(
                       icon: Icons.remove,
-                      onTap: () => context
-                          .read<AddPartUsedController>()
-                          .decrementQuantity(),
+                      onTap: _decrementQuantity,
                     ),
                     Expanded(
                       child: Center(
                         child: Text(
-                          controller.quantity.toString(),
+                          _quantity.toString(),
                           style: AppTextStyles.heading1.copyWith(fontSize: 28),
                         ),
                       ),
                     ),
                     _QtyButton(
                       icon: Icons.add,
-                      onTap: () => context
-                          .read<AddPartUsedController>()
-                          .incrementQuantity(),
+                      onTap: _incrementQuantity,
                     ),
                   ],
                 ),
 
-                if (controller.exceedsStock) ...[
+                if (_exceedsStock) ...[
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.amberAccent.withOpacity(0.12),
+                      color: AppColors.amberAccent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -211,7 +310,7 @@ class _AddPartUsedView extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Only ${controller.availableStock.toStringAsFixed(2)} available — reduce quantity',
+                            'Only ${_availableStock.toStringAsFixed(2)} available — reduce quantity',
                             style: AppTextStyles.caption
                                 .copyWith(color: AppColors.amberAccent),
                           ),
@@ -229,7 +328,7 @@ class _AddPartUsedView extends StatelessWidget {
                         style: AppTextStyles.caption
                             .copyWith(letterSpacing: 0.5)),
                     Text(
-                      '₹${controller.totalPrice.toStringAsFixed(0)}',
+                      '₹${_totalPrice.toStringAsFixed(0)}',
                       style: const TextStyle(
                         color: AppColors.limeAccent,
                         fontWeight: FontWeight.bold,
@@ -240,10 +339,10 @@ class _AddPartUsedView extends StatelessWidget {
                 ),
               ],
 
-              if (controller.errorMessage != null) ...[
+              if (_errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Text(
-                  controller.errorMessage!,
+                  _errorMessage!,
                   style: const TextStyle(
                       color: AppColors.statusError, fontSize: 13),
                 ),
@@ -252,11 +351,10 @@ class _AddPartUsedView extends StatelessWidget {
               const SizedBox(height: 20),
               AppButton(
                 label: 'Add Part',
-                isLoading: controller.isSubmitting,
-                onPressed: controller.selectedPart == null ||
-                        controller.exceedsStock
+                isLoading: _isSubmitting,
+                onPressed: _selectedPart == null || _exceedsStock
                     ? null
-                    : () => context.read<AddPartUsedController>().submit(),
+                    : _submit,
               ),
             ],
           ),

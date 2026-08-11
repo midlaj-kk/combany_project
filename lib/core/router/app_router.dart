@@ -98,10 +98,6 @@ class AppRouter {
   // Admin
   // -------------------------------------------------------------
 
-  static void toAdminDashboard(BuildContext context, {bool replace = false}) {
-    _push(context, const AdminDashboardScreen(), replace: replace);
-  }
-
   static void toAddMechanic(BuildContext context) {
     _push(context, const AddMechanicScreen());
   }
@@ -129,10 +125,6 @@ class AppRouter {
   // -------------------------------------------------------------
   // Service Advisor
   // -------------------------------------------------------------
-
-  static void toAdvisorHome(BuildContext context, {bool replace = false}) {
-    _push(context, const AdvisorHomeScreen(), replace: replace);
-  }
 
   static void toCustomerList(BuildContext context) {
     _push(context, const CustomerListScreen());
@@ -170,14 +162,6 @@ class AppRouter {
   // Mechanic
   // -------------------------------------------------------------
 
-  static void toMechanicHome(BuildContext context, {bool replace = false}) {
-    _push(context, const MechanicHomeScreen(), replace: replace);
-  }
-
-  static void toMechanicProfile(BuildContext context, {bool replace = false}) {
-    _push(context, const MechanicProfileScreen(), replace: replace);
-  }
-
   static void toJobDetailMechanic(BuildContext context, {required int jobId}) {
     _push(context, JobDetailMechanicScreen(jobId: jobId));
   }
@@ -185,10 +169,6 @@ class AppRouter {
   // -------------------------------------------------------------
   // Cashier
   // -------------------------------------------------------------
-
-  static void toCashierHome(BuildContext context, {bool replace = false}) {
-    _push(context, const CashierHomeScreen(), replace: replace);
-  }
 
   static void toPendingPayments(BuildContext context) {
     _push(context, const PendingPaymentsScreen());

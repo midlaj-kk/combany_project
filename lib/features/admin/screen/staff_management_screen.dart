@@ -1,6 +1,5 @@
-import 'package:auto_care_app/features/admin/controller/staff_management_controller.dart';
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -9,25 +8,70 @@ import '../widgets/staff_card.dart';
 
 /// Admin "Staff Management" screen — list, search, and filter staff
 /// by role, with a floating button to add new staff.
-class StaffManagementScreen extends StatelessWidget {
+/// Reads static demo data directly from [DemoRepository].
+class StaffManagementScreen extends StatefulWidget {
   const StaffManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => StaffManagementController()..loadStaff(),
-      child: const _StaffManagementView(),
-    );
-  }
+  State<StaffManagementScreen> createState() => _StaffManagementScreenState();
 }
 
-class _StaffManagementView extends StatelessWidget {
-  const _StaffManagementView();
+class _StaffManagementScreenState extends State<StaffManagementScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  String _selectedRole = 'all';
+  List<dynamic> _staffList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStaff();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadStaff() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final staff = await DemoRepository.instance.getStaff(
+        search: _searchController.text.trim(),
+        role: _selectedRole,
+      );
+      if (!mounted) return;
+      setState(() => _staffList = staff);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load staff list. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _onRoleSelected(String role) {
+    setState(() => _selectedRole = role);
+    _loadStaff();
+  }
+
+  void _onSearchSubmitted(String _) {
+    _loadStaff();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<StaffManagementController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -70,9 +114,8 @@ class _StaffManagementView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: RoleFilterTabs(
-                selectedRole: controller.selectedRole,
-                onRoleSelected: (role) =>
-                    context.read<StaffManagementController>().onRoleSelected(role),
+                selectedRole: _selectedRole,
+                onRoleSelected: _onRoleSelected,
               ),
             ),
             const SizedBox(height: 16),
@@ -81,10 +124,9 @@ class _StaffManagementView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
-                controller: controller.searchController,
+                controller: _searchController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                onSubmitted:
-                    context.read<StaffManagementController>().onSearchChanged,
+                onSubmitted: _onSearchSubmitted,
                 decoration: const InputDecoration(
                   hintText: 'Search by name or email',
                   prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
@@ -96,20 +138,20 @@ class _StaffManagementView extends StatelessWidget {
             // --- Staff list ---
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () =>
-                    context.read<StaffManagementController>().loadStaff(),
+                onRefresh: _loadStaff,
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
-                child: controller.isLoading
+                child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
                             color: AppColors.limeAccent),
                       )
-                    : controller.errorMessage != null
-                        ? _ErrorState(message: controller.errorMessage!)
-                        : controller.staffList.isEmpty
+                    : _errorMessage != null
+                        ? _ErrorState(message: _errorMessage!)
+                        : _staffList.isEmpty
                             ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
                                 children: [
                                   const SizedBox(height: 80),
                                   Center(
@@ -119,12 +161,13 @@ class _StaffManagementView extends StatelessWidget {
                                 ],
                               )
                             : ListView.builder(
-                                physics: const AlwaysScrollableScrollPhysics(),
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.fromLTRB(
                                     20, 0, 20, 100),
-                                itemCount: controller.staffList.length,
+                                itemCount: _staffList.length,
                                 itemBuilder: (context, index) {
-                                  final staff = controller.staffList[index];
+                                  final staff = _staffList[index];
                                   return StaffCard(
                                     name: staff['name'] ?? '',
                                     role: staff['role'] ?? '',

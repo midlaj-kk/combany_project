@@ -22,9 +22,9 @@ class LowStockBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.amberAccent.withOpacity(0.15),
+          color: AppColors.amberAccent.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.amberAccent.withOpacity(0.3)),
+          border: Border.all(color: AppColors.amberAccent.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [

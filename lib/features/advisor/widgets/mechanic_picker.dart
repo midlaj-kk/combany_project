@@ -25,7 +25,7 @@ class MechanicPicker extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: mechanics.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           if (index == mechanics.length) {
             return _SkipChip(
@@ -45,7 +45,7 @@ class MechanicPicker extends StatelessWidget {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.limeAccent.withOpacity(0.12)
+                    ? AppColors.limeAccent.withValues(alpha: 0.12)
                     : AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
@@ -109,7 +109,7 @@ class _SkipChip extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.limeAccent.withOpacity(0.12)
+              ? AppColors.limeAccent.withValues(alpha: 0.12)
               : AppColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(

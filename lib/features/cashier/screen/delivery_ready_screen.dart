@@ -1,32 +1,73 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
-import '../controller/delivery_ready_controller.dart';
 import '../widgets/delivery_ready_card.dart';
 import 'complete_delivery_screen.dart';
 
 /// Cashier "Delivery Ready List" screen.
-class DeliveryReadyScreen extends StatelessWidget {
+class DeliveryReadyScreen extends StatefulWidget {
   const DeliveryReadyScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => DeliveryReadyController()..load(),
-      child: const _DeliveryReadyView(),
-    );
-  }
+  State<DeliveryReadyScreen> createState() => _DeliveryReadyScreenState();
 }
 
-class _DeliveryReadyView extends StatelessWidget {
-  const _DeliveryReadyView();
+class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<dynamic> _vehicles = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final vehicles = await DemoRepository.instance.getDeliveryReady();
+      if (!mounted) return;
+      setState(() => _vehicles = vehicles);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load delivery list. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  List<dynamic> get _filteredVehicles {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return _vehicles;
+    return _vehicles.where((v) {
+      final vehicleNumber =
+          (v['vehicle_number'] ?? '').toString().toLowerCase();
+      final customerName = (v['customer_name'] ?? '').toString().toLowerCase();
+      return vehicleNumber.contains(query) || customerName.contains(query);
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<DeliveryReadyController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -60,10 +101,9 @@ class _DeliveryReadyView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
-                controller: controller.searchController,
+                controller: _searchController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                onChanged: (value) =>
-                    context.read<DeliveryReadyController>().onSearchChanged(value),
+                onChanged: (value) => setState(() {}),
                 decoration: const InputDecoration(
                   hintText: 'Search by vehicle or name...',
                   prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
@@ -77,26 +117,26 @@ class _DeliveryReadyView extends StatelessWidget {
             // --- List ---
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => context.read<DeliveryReadyController>().load(),
+                onRefresh: _load,
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
-                child: controller.isLoading
+                child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
                             color: AppColors.limeAccent),
                       )
-                    : controller.errorMessage != null
+                    : _errorMessage != null
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
                               const SizedBox(height: 80),
                               Center(
-                                child: Text(controller.errorMessage!,
+                                child: Text(_errorMessage!,
                                     style: AppTextStyles.bodySecondary),
                               ),
                             ],
                           )
-                        : controller.filteredVehicles.isEmpty
+                        : _filteredVehicles.isEmpty
                             ? ListView(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 children: [
@@ -110,22 +150,19 @@ class _DeliveryReadyView extends StatelessWidget {
                               )
                             : ListView.builder(
                                 physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.fromLTRB(
-                                    20, 0, 20, 20),
-                                itemCount: controller.filteredVehicles.length,
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                itemCount: _filteredVehicles.length,
                                 itemBuilder: (context, index) {
-                                  final job =
-                                      controller.filteredVehicles[index];
+                                  final job = _filteredVehicles[index];
                                   return DeliveryReadyCard(
                                     jobNumber: job['job_number'] ?? '',
                                     vehicleModel:
                                         '${job['vehicle_number'] ?? ''} ${job['service_type'] ?? ''}',
                                     customerName: job['customer_name'] ?? '',
-                                    customerPhone:
-                                        job['customer_phone'] ?? '',
-                                    footnote: index == controller
-                                                .filteredVehicles.length -
-                                            1
+                                    customerPhone: job['customer_phone'] ?? '',
+                                    footnote: index ==
+                                            _filteredVehicles.length - 1
                                         ? 'Quality Check Cleared • Final detailing complete'
                                         : null,
                                     onMarkDelivered: () {
@@ -152,7 +189,8 @@ class _DeliveryReadyView extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
+      bottomNavigationBar:
+          const RoleBottomNav(role: 'cashier', activeIndex: 2),
     );
   }
 }

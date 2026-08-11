@@ -63,7 +63,7 @@ class _AnimatedCheckmarkState extends State<AnimatedCheckmark>
             boxShadow: widget.filled
                 ? [
                     BoxShadow(
-                      color: AppColors.limeAccent.withOpacity(0.5),
+                      color: AppColors.limeAccent.withValues(alpha: 0.5),
                       blurRadius: 30,
                       spreadRadius: 4,
                     ),

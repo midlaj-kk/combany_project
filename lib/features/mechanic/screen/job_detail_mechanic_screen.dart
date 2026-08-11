@@ -1,10 +1,9 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
 import '../../../widgets/common/status_badge.dart';
-import '../controller/job_detail_mechanic_controller.dart';
 import '../widgets/part_used_item.dart';
 import '../widgets/service_work_item.dart';
 import 'add_part_used_sheet.dart';
@@ -14,43 +13,171 @@ import 'add_service_work_sheet.dart';
 ///
 /// Usage once routing is set up:
 ///   JobDetailMechanicScreen(jobId: job['id'])
-class JobDetailMechanicScreen extends StatelessWidget {
+class JobDetailMechanicScreen extends StatefulWidget {
   const JobDetailMechanicScreen({super.key, required this.jobId});
 
   final int jobId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => JobDetailMechanicController(jobId: jobId)..load(),
-      child: const _JobDetailMechanicView(),
-    );
-  }
+  State<JobDetailMechanicScreen> createState() =>
+      _JobDetailMechanicScreenState();
 }
 
-class _JobDetailMechanicView extends StatelessWidget {
-  const _JobDetailMechanicView();
+class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  Map<String, dynamic>? _job;
+  List<dynamic> _workItems = [];
+  List<dynamic> _partsUsed = [];
+
+  bool _isSubmittingQc = false;
+
+  double get _totalLabour => _workItems.fold(
+      0, (sum, w) => sum + ((w['labour_charge'] as num?)?.toDouble() ?? 0));
+
+  double get _totalParts => _partsUsed.fold(
+      0,
+      (sum, p) =>
+          sum +
+          (((p['price'] as num?)?.toDouble() ?? 0) *
+              ((p['quantity'] as num?)?.toDouble() ?? 0)));
+
+  bool get _allWorkCompleted =>
+      _workItems.isNotEmpty &&
+      _workItems.every((w) => w['status'] == 'completed');
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final job =
+          await DemoRepository.instance.getJobDetail(widget.jobId);
+      final workItems =
+          await DemoRepository.instance.getServiceWork(widget.jobId);
+      final partsUsed =
+          await DemoRepository.instance.getPartsUsed(widget.jobId);
+      if (!mounted) return;
+      setState(() {
+        _job = job;
+        _workItems = workItems;
+        _partsUsed = partsUsed;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load job details. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _toggleWorkStatus(int workId, String currentStatus) async {
+    final next = currentStatus == 'pending'
+        ? 'in_progress'
+        : currentStatus == 'in_progress'
+            ? 'completed'
+            : 'pending';
+    try {
+      await DemoRepository.instance.updateWorkStatus(workId, next);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not update work status.';
+      });
+    }
+  }
+
+  Future<void> _deletePart(int partUsedId) async {
+    try {
+      await DemoRepository.instance.deletePartUsed(partUsedId);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not remove part.';
+      });
+    }
+  }
+
+  Future<void> _sendForQualityCheck() async {
+    if (!_allWorkCompleted) return;
+    setState(() => _isSubmittingQc = true);
+    try {
+      await DemoRepository.instance.updateJobStatus(widget.jobId, 'qc_pending');
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not send for quality check.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmittingQc = false);
+      }
+    }
+  }
+
+  Future<void> _openAddWorkSheet() async {
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddServiceWorkSheet(
+        jobId: widget.jobId,
+        jobNumber: _job?['job_number'] ?? '',
+      ),
+    );
+    if (added == true && mounted) {
+      await _load();
+    }
+  }
+
+  Future<void> _openAddPartSheet() async {
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddPartUsedSheet(
+        jobId: widget.jobId,
+      ),
+    );
+    if (added == true && mounted) {
+      await _load();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<JobDetailMechanicController>();
-    final job = controller.job;
+    final job = _job;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : controller.errorMessage != null && job == null
+            : _errorMessage != null && job == null
                 ? Center(
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
                 : RefreshIndicator(
-                    onRefresh: () =>
-                        context.read<JobDetailMechanicController>().load(),
+                    onRefresh: _load,
                     color: AppColors.limeAccent,
                     backgroundColor: AppColors.surface,
                     child: SingleChildScrollView(
@@ -88,7 +215,8 @@ class _JobDetailMechanicView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(18),
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 _InfoLine(
                                   label: 'VEHICLE NUMBER',
@@ -117,23 +245,26 @@ class _JobDetailMechanicView extends StatelessWidget {
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppColors.amberAccent.withOpacity(0.1),
+                              color: AppColors.amberAccent.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color:
-                                      AppColors.amberAccent.withOpacity(0.3)),
+                                  color: AppColors.amberAccent
+                                      .withValues(alpha: 0.3)),
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.warning_amber_rounded,
+                                    const Icon(
+                                        Icons.warning_amber_rounded,
                                         color: AppColors.amberAccent,
                                         size: 16),
                                     const SizedBox(width: 6),
                                     Text('REPORTED ISSUE',
-                                        style: AppTextStyles.caption.copyWith(
+                                        style: AppTextStyles.caption
+                                            .copyWith(
                                           color: AppColors.amberAccent,
                                           letterSpacing: 0.5,
                                         )),
@@ -142,8 +273,9 @@ class _JobDetailMechanicView extends StatelessWidget {
                                 const SizedBox(height: 8),
                                 Text(
                                   '"${job?['complaint'] ?? ''}"',
-                                  style: AppTextStyles.bodyRegular.copyWith(
-                                      fontStyle: FontStyle.italic),
+                                  style: AppTextStyles.bodyRegular
+                                      .copyWith(
+                                          fontStyle: FontStyle.italic),
                                 ),
                               ],
                             ),
@@ -152,45 +284,33 @@ class _JobDetailMechanicView extends StatelessWidget {
 
                           // --- Service Work ---
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
                               Text('Service Work',
                                   style: AppTextStyles.heading3),
                               TextButton.icon(
-                                onPressed: () async {
-                                  final added = await showModalBottomSheet<bool>(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (_) => AddServiceWorkSheet(
-                                      jobId: controller.jobId,
-                                      jobNumber: job?['job_number'] ?? '',
-                                    ),
-                                  );
-                                  if (added == true && context.mounted) {
-                                    context
-                                        .read<JobDetailMechanicController>()
-                                        .load();
-                                  }
-                                },
+                                onPressed: _openAddWorkSheet,
                                 icon: const Icon(Icons.add,
-                                    size: 16, color: AppColors.limeAccent),
+                                    size: 16,
+                                    color: AppColors.limeAccent),
                                 label: const Text('ADD WORK',
-                                    style:
-                                        TextStyle(color: AppColors.limeAccent)),
+                                    style: TextStyle(
+                                        color: AppColors.limeAccent)),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
 
-                          if (controller.workItems.isEmpty)
+                          if (_workItems.isEmpty)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
                               child: Text('No work items added yet',
                                   style: AppTextStyles.bodySecondary),
                             )
                           else
-                            ...controller.workItems.map((w) {
+                            ..._workItems.map((w) {
                               return ServiceWorkItem(
                                 workName: w['work_name'] ?? '',
                                 description: w['description'] ?? '',
@@ -198,52 +318,41 @@ class _JobDetailMechanicView extends StatelessWidget {
                                         ?.toStringAsFixed(0) ??
                                     '0',
                                 status: w['status'] ?? 'pending',
-                                onStatusTap: () => context
-                                    .read<JobDetailMechanicController>()
-                                    .toggleWorkStatus(w['id'], w['status']),
+                                onStatusTap: () => _toggleWorkStatus(
+                                    w['id'], w['status']),
                               );
                             }),
                           const SizedBox(height: 16),
 
                           // --- Parts Used ---
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Parts Used', style: AppTextStyles.heading3),
+                              Text('Parts Used',
+                                  style: AppTextStyles.heading3),
                               TextButton.icon(
-                                onPressed: () async {
-                                  final added = await showModalBottomSheet<bool>(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (_) => AddPartUsedSheet(
-                                      jobId: controller.jobId,
-                                    ),
-                                  );
-                                  if (added == true && context.mounted) {
-                                    context
-                                        .read<JobDetailMechanicController>()
-                                        .load();
-                                  }
-                                },
+                                onPressed: _openAddPartSheet,
                                 icon: const Icon(Icons.add,
-                                    size: 16, color: AppColors.limeAccent),
+                                    size: 16,
+                                    color: AppColors.limeAccent),
                                 label: const Text('ADD PART',
-                                    style:
-                                        TextStyle(color: AppColors.limeAccent)),
+                                    style: TextStyle(
+                                        color: AppColors.limeAccent)),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
 
-                          if (controller.partsUsed.isEmpty)
+                          if (_partsUsed.isEmpty)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
                               child: Text('No parts used yet',
                                   style: AppTextStyles.bodySecondary),
                             )
                           else
-                            ...controller.partsUsed.map((p) {
+                            ..._partsUsed.map((p) {
                               return PartUsedItem(
                                 partName: p['part_name'] ?? '',
                                 quantity: (p['quantity'] as num?)
@@ -256,28 +365,27 @@ class _JobDetailMechanicView extends StatelessWidget {
                                             (p['quantity'] as num))
                                         .toStringAsFixed(0)
                                     : '0',
-                                onDelete: () => context
-                                    .read<JobDetailMechanicController>()
-                                    .deletePart(p['id']),
+                                onDelete: () => _deletePart(p['id']),
                               );
                             }),
                           const SizedBox(height: 16),
 
                           // --- Totals ---
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceAround,
                             children: [
                               _TotalBlock(
                                 label: 'TOTAL LABOR',
-                                value: controller.totalLabour
-                                    .toStringAsFixed(0),
+                                value: _totalLabour.toStringAsFixed(0),
                               ),
                               Container(
-                                  width: 1, height: 30, color: AppColors.divider),
+                                  width: 1,
+                                  height: 30,
+                                  color: AppColors.divider),
                               _TotalBlock(
                                 label: 'TOTAL PARTS',
-                                value:
-                                    controller.totalParts.toStringAsFixed(0),
+                                value: _totalParts.toStringAsFixed(0),
                               ),
                             ],
                           ),
@@ -287,20 +395,19 @@ class _JobDetailMechanicView extends StatelessWidget {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: controller.allWorkCompleted &&
-                                      !controller.isSubmittingQc
-                                  ? () => context
-                                      .read<JobDetailMechanicController>()
-                                      .sendForQualityCheck()
-                                  : null,
+                              onPressed:
+                                  _allWorkCompleted && !_isSubmittingQc
+                                      ? _sendForQualityCheck
+                                      : null,
                               icon: const Icon(Icons.fact_check_outlined,
                                   color: Colors.black, size: 18),
-                              label: controller.isSubmittingQc
+                              label: _isSubmittingQc
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.black),
+                                          strokeWidth: 2,
+                                          color: Colors.black),
                                     )
                                   : const Text('Send for Quality Check'),
                             ),
@@ -308,7 +415,7 @@ class _JobDetailMechanicView extends StatelessWidget {
                           const SizedBox(height: 6),
                           Center(
                             child: Text(
-                              controller.allWorkCompleted
+                              _allWorkCompleted
                                   ? 'Ready to send for quality check'
                                   : 'Complete all service work to proceed',
                               style: AppTextStyles.caption,
@@ -325,7 +432,8 @@ class _JobDetailMechanicView extends StatelessWidget {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.label, required this.value, this.valueColor});
+  const _InfoLine(
+      {required this.label, required this.value, this.valueColor});
   final String label;
   final String value;
   final Color? valueColor;

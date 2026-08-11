@@ -1,6 +1,5 @@
-import 'package:auto_care_app/features/mechanic/controller/add_service_work_controller.dart';
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
@@ -16,7 +15,7 @@ import '../../../widgets/common/app_button.dart';
 ///   );
 /// On success, pop the sheet with `true` so the caller can refresh
 /// the job's work list.
-class AddServiceWorkSheet extends StatelessWidget {
+class AddServiceWorkSheet extends StatefulWidget {
   const AddServiceWorkSheet({
     super.key,
     required this.jobId,
@@ -27,23 +26,63 @@ class AddServiceWorkSheet extends StatelessWidget {
   final String jobNumber;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AddServiceWorkController(jobId: jobId),
-      child: _AddServiceWorkView(jobNumber: jobNumber),
-    );
-  }
+  State<AddServiceWorkSheet> createState() => _AddServiceWorkSheetState();
 }
 
-class _AddServiceWorkView extends StatelessWidget {
-  const _AddServiceWorkView({required this.jobNumber});
-  final String jobNumber;
+class _AddServiceWorkSheetState extends State<AddServiceWorkSheet> {
+  final TextEditingController _workNameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _labourChargeController =
+      TextEditingController();
+
+  bool _isSubmitting = false;
+  String? _errorMessage;
+  bool _addedSuccessfully = false;
+
+  @override
+  void dispose() {
+    _workNameController.dispose();
+    _descriptionController.dispose();
+    _labourChargeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_workNameController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Please enter a work name');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.addServiceWork(
+        jobId: widget.jobId,
+        workName: _workNameController.text.trim(),
+        description: _descriptionController.text.trim(),
+        labourCharge:
+            double.tryParse(_labourChargeController.text.trim()) ?? 0,
+      );
+      if (!mounted) return;
+      setState(() => _addedSuccessfully = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not add work item. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AddServiceWorkController>();
-
-    if (controller.addedSuccessfully) {
+    if (_addedSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) Navigator.of(context).pop(true);
       });
@@ -89,7 +128,8 @@ class _AddServiceWorkView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text('Job ID: $jobNumber', style: AppTextStyles.caption),
+                    Text('Job ID: ${widget.jobNumber}',
+                        style: AppTextStyles.caption),
                   ],
                 ),
               ),
@@ -108,21 +148,21 @@ class _AddServiceWorkView extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              _FieldLabel('Work Name'),
+              const _FieldLabel('Work Name'),
               TextField(
-                controller: controller.workNameController,
+                controller: _workNameController,
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   hintText: 'e.g. Oil Filter Replacement',
-                  suffixIcon:
-                      Icon(Icons.edit_outlined, color: AppColors.textMuted, size: 18),
+                  suffixIcon: Icon(Icons.edit_outlined,
+                      color: AppColors.textMuted, size: 18),
                 ),
               ),
               const SizedBox(height: 16),
 
-              _FieldLabel('Description'),
+              const _FieldLabel('Description'),
               TextField(
-                controller: controller.descriptionController,
+                controller: _descriptionController,
                 maxLines: 3,
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
@@ -131,25 +171,27 @@ class _AddServiceWorkView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              _FieldLabel('Labour Charge'),
+              const _FieldLabel('Labour Charge'),
               TextField(
-                controller: controller.labourChargeController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                controller: _labourChargeController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   hintText: '0.00',
-                  prefixIcon:
-                      Icon(Icons.currency_rupee, color: AppColors.limeAccent, size: 18),
-                  suffixIcon:
-                      Icon(Icons.calculate_outlined, color: AppColors.textMuted, size: 18),
+                  prefixIcon: Icon(Icons.currency_rupee,
+                      color: AppColors.limeAccent, size: 18),
+                  suffixIcon: Icon(Icons.calculate_outlined,
+                      color: AppColors.textMuted, size: 18),
                 ),
               ),
 
-              if (controller.errorMessage != null) ...[
+              if (_errorMessage != null) ...[
                 const SizedBox(height: 14),
                 Text(
-                  controller.errorMessage!,
-                  style: const TextStyle(color: AppColors.statusError, fontSize: 13),
+                  _errorMessage!,
+                  style: const TextStyle(
+                      color: AppColors.statusError, fontSize: 13),
                 ),
               ],
 
@@ -157,16 +199,16 @@ class _AddServiceWorkView extends StatelessWidget {
               AppButton(
                 label: 'Add Work',
                 icon: Icons.add_circle_outline,
-                isLoading: controller.isSubmitting,
-                onPressed: () =>
-                    context.read<AddServiceWorkController>().submit(),
+                isLoading: _isSubmitting,
+                onPressed: _submit,
               ),
               const SizedBox(height: 10),
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   child: Text('CANCEL',
-                      style: AppTextStyles.caption.copyWith(letterSpacing: 0.5)),
+                      style: AppTextStyles.caption.copyWith(
+                          letterSpacing: 0.5)),
                 ),
               ),
             ],

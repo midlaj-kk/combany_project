@@ -19,10 +19,10 @@ class GlowingLogo extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(size * 0.28),
-        border: Border.all(color: AppColors.limeAccent.withOpacity(0.4)),
+        border: Border.all(color: AppColors.limeAccent.withValues(alpha: 0.4)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.limeAccent.withOpacity(0.35),
+            color: AppColors.limeAccent.withValues(alpha: 0.35),
             blurRadius: 40,
             spreadRadius: 6,
           ),

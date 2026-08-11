@@ -1,6 +1,6 @@
-import 'package:auto_care_app/features/admin/controller/add_mechanic_controller.dart';
+import 'dart:math';
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
@@ -10,27 +10,97 @@ import '../widgets/role_selector.dart';
 
 /// Admin "Add/Edit Mechanic" (staff) form — creates a new staff
 /// account of any role (Admin, Advisor, Mechanic, Cashier).
-class AddMechanicScreen extends StatelessWidget {
+class AddMechanicScreen extends StatefulWidget {
   const AddMechanicScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AddMechanicController(),
-      child: const _AddMechanicView(),
-    );
-  }
+  State<AddMechanicScreen> createState() => _AddMechanicScreenState();
 }
 
-class _AddMechanicView extends StatelessWidget {
-  const _AddMechanicView();
+class _AddMechanicScreenState extends State<AddMechanicScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _specializationController =
+      TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  String _selectedRole = 'mechanic';
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+  bool _createdSuccessfully = false;
+
+  bool get _isMechanicRole => _selectedRole == 'mechanic';
+
+  void _setRole(String role) {
+    setState(() => _selectedRole = role);
+  }
+
+  void _toggleObscurePassword() {
+    setState(() => _obscurePassword = !_obscurePassword);
+  }
+
+  /// Generates a readable random temporary password, e.g. "Ac7f2Kq9".
+  void _generatePassword() {
+    const chars =
+        'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    final rand = Random.secure();
+    _passwordController.text =
+        List.generate(10, (_) => chars[rand.nextInt(chars.length)]).join();
+    setState(() {});
+  }
+
+  Future<void> _submit() async {
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all required fields');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.createStaff(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        role: _selectedRole,
+        password: _passwordController.text,
+        specialization:
+            _isMechanicRole ? _specializationController.text.trim() : null,
+      );
+      if (!mounted) return;
+      setState(() => _createdSuccessfully = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorMessage = 'Something went wrong. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _specializationController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AddMechanicController>();
-
     // Once creation succeeds, show a confirmation and pop back.
-    if (controller.createdSuccessfully) {
+    if (_createdSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,43 +149,43 @@ class _AddMechanicView extends StatelessWidget {
                     }),
                     const SizedBox(height: 28),
 
-                    _FieldLabel('Full Name'),
+                    const _FieldLabel('Full Name'),
                     AppTextField(
-                      controller: controller.nameController,
+                      controller: _nameController,
                       hint: 'e.g. Robert Jensen',
                       icon: Icons.person_outline,
                     ),
                     const SizedBox(height: 16),
 
-                    _FieldLabel('Email Address'),
+                    const _FieldLabel('Email Address'),
                     AppTextField(
-                      controller: controller.emailController,
+                      controller: _emailController,
                       hint: 'r.jensen@autocare.pro',
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 16),
 
-                    _FieldLabel('Phone Number'),
+                    const _FieldLabel('Phone Number'),
                     AppTextField(
-                      controller: controller.phoneController,
+                      controller: _phoneController,
                       hint: '+1 (555) 000-0000',
                       icon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 16),
 
-                    if (controller.isMechanicRole) ...[
-                      _FieldLabel('Specialization'),
+                    if (_isMechanicRole) ...[
+                      const _FieldLabel('Specialization'),
                       AppTextField(
-                        controller: controller.specializationController,
+                        controller: _specializationController,
                         hint: 'e.g. Engine & Transmission',
                         icon: Icons.build_outlined,
                       ),
                       const SizedBox(height: 16),
                     ],
 
-                    Align(
+                    const Align(
                       alignment: Alignment.centerLeft,
                       child: _FieldLabel('System Role'),
                     ),
@@ -123,41 +193,36 @@ class _AddMechanicView extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: RoleSelector(
-                        selectedRole: controller.selectedRole,
-                        onChanged: (role) =>
-                            context.read<AddMechanicController>().setRole(role),
+                        selectedRole: _selectedRole,
+                        onChanged: _setRole,
                       ),
                     ),
                     const SizedBox(height: 20),
 
                     Row(
                       children: [
-                        Expanded(child: _FieldLabel('Temporary Password')),
+                        const Expanded(child: _FieldLabel('Temporary Password')),
                         TextButton(
-                          onPressed: () => context
-                              .read<AddMechanicController>()
-                              .generatePassword(),
+                          onPressed: _generatePassword,
                           child: const Text('Generate',
                               style: TextStyle(color: AppColors.limeAccent)),
                         ),
                       ],
                     ),
                     AppTextField(
-                      controller: controller.passwordController,
+                      controller: _passwordController,
                       hint: '••••••••',
                       icon: Icons.lock_outline,
-                      obscureText: controller.obscurePassword,
+                      obscureText: _obscurePassword,
                       trailing: IconButton(
                         icon: Icon(
-                          controller.obscurePassword
+                          _obscurePassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                           color: AppColors.textMuted,
                           size: 20,
                         ),
-                        onPressed: () => context
-                            .read<AddMechanicController>()
-                            .toggleObscurePassword(),
+                        onPressed: _toggleObscurePassword,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -186,10 +251,10 @@ class _AddMechanicView extends StatelessWidget {
                       ),
                     ),
 
-                    if (controller.errorMessage != null) ...[
+                    if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
                       Text(
-                        controller.errorMessage!,
+                        _errorMessage!,
                         style: const TextStyle(
                           color: AppColors.statusError,
                           fontSize: 13,
@@ -200,9 +265,8 @@ class _AddMechanicView extends StatelessWidget {
                     const SizedBox(height: 24),
                     AppButton(
                       label: 'Create Account',
-                      isLoading: controller.isLoading,
-                      onPressed: () =>
-                          context.read<AddMechanicController>().submit(),
+                      isLoading: _isLoading,
+                      onPressed: _submit,
                     ),
                     const SizedBox(height: 12),
                     TextButton(

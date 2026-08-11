@@ -1,9 +1,8 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
-import '../controller/create_service_job_controller.dart';
 import '../widgets/mechanic_picker.dart';
 import 'job_creation_confirmation_screen.dart';
 
@@ -15,7 +14,7 @@ import 'job_creation_confirmation_screen.dart';
 ///     vehicleLabel: vehicle['vehicle_number'],
 ///     customerName: vehicle['customer_name'],
 ///   )
-class CreateServiceJobScreen extends StatelessWidget {
+class CreateServiceJobScreen extends StatefulWidget {
   const CreateServiceJobScreen({
     super.key,
     required this.vehicleId,
@@ -28,34 +27,106 @@ class CreateServiceJobScreen extends StatelessWidget {
   final String customerName;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CreateServiceJobController(
-        vehicleId: vehicleId,
-        vehicleLabel: vehicleLabel,
-        customerName: customerName,
-      )..loadMechanics(),
-      child: const _CreateServiceJobView(),
-    );
-  }
+  State<CreateServiceJobScreen> createState() => _CreateServiceJobScreenState();
 }
 
-class _CreateServiceJobView extends StatelessWidget {
-  const _CreateServiceJobView();
+class _CreateServiceJobScreenState extends State<CreateServiceJobScreen> {
+  final TextEditingController complaintController = TextEditingController();
+  final TextEditingController serviceTypeController = TextEditingController();
+  final TextEditingController odometerController = TextEditingController();
+
+  bool isLoadingMechanics = true;
+  List<dynamic> mechanics = [];
+  int? selectedMechanicId;
+
+  bool isSubmitting = false;
+  String? errorMessage;
+  bool createdSuccessfully = false;
+  Map<String, dynamic>? createdJob;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMechanics();
+  }
+
+  @override
+  void dispose() {
+    complaintController.dispose();
+    serviceTypeController.dispose();
+    odometerController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMechanics() async {
+    setState(() => isLoadingMechanics = true);
+    try {
+      final mechanics = await DemoRepository.instance.getMechanics();
+      if (!mounted) return;
+      setState(() => this.mechanics = mechanics);
+    } catch (_) {
+      // Non-fatal — mechanic assignment can happen later.
+      if (!mounted) return;
+      setState(() => mechanics = []);
+    } finally {
+      if (mounted) {
+        setState(() => isLoadingMechanics = false);
+      }
+    }
+  }
+
+  void _selectMechanic(int? mechanicId) {
+    setState(() => selectedMechanicId = mechanicId);
+  }
+
+  Future<void> _submit() async {
+    if (complaintController.text.trim().isEmpty ||
+        serviceTypeController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = 'Please describe the complaint and service type';
+      });
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+      errorMessage = null;
+    });
+
+    try {
+      final job = await DemoRepository.instance.createServiceJob(
+        vehicleId: widget.vehicleId,
+        complaint: complaintController.text.trim(),
+        serviceType: serviceTypeController.text.trim(),
+        odometerReading: int.tryParse(odometerController.text.trim()),
+        assignedMechanicId: selectedMechanicId,
+      );
+      if (!mounted) return;
+      setState(() {
+        createdJob = job;
+        createdSuccessfully = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        errorMessage = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<CreateServiceJobController>();
-
-    if (controller.createdSuccessfully) {
+    if (createdSuccessfully && createdJob != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => ChangeNotifierProvider.value(
-              value: controller,
-              child: const JobCreationConfirmationScreen(),
-            ),
+            builder: (_) =>
+                JobCreationConfirmationScreen(job: createdJob!),
           ),
         );
       });
@@ -104,7 +175,7 @@ class _CreateServiceJobView extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: AppColors.limeAccent.withOpacity(0.15),
+                              color: AppColors.limeAccent.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.directions_car,
@@ -116,11 +187,11 @@ class _CreateServiceJobView extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  controller.vehicleLabel,
+                                  widget.vehicleLabel,
                                   style: AppTextStyles.bodyRegular
                                       .copyWith(fontWeight: FontWeight.bold),
                                 ),
-                                Text(controller.customerName,
+                                Text(widget.customerName,
                                     style: AppTextStyles.caption),
                               ],
                             ),
@@ -128,16 +199,17 @@ class _CreateServiceJobView extends StatelessWidget {
                           TextButton(
                             onPressed: () => Navigator.of(context).maybePop(),
                             child: const Text('Change',
-                                style: TextStyle(color: AppColors.limeAccent)),
+                                style:
+                                    TextStyle(color: AppColors.limeAccent)),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    _FieldLabel('Complaint / Issue'),
+                    const _FieldLabel('Complaint / Issue'),
                     TextField(
-                      controller: controller.complaintController,
+                      controller: complaintController,
                       maxLines: 3,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
@@ -147,27 +219,27 @@ class _CreateServiceJobView extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    _FieldLabel('Service Type'),
+                    const _FieldLabel('Service Type'),
                     TextField(
-                      controller: controller.serviceTypeController,
+                      controller: serviceTypeController,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: 'e.g. Full Service + Brake Pad Replacement',
-                        prefixIcon:
-                            Icon(Icons.build_outlined, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.build_outlined,
+                            color: AppColors.textMuted),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    _FieldLabel('Odometer Reading'),
+                    const _FieldLabel('Odometer Reading'),
                     TextField(
-                      controller: controller.odometerController,
+                      controller: odometerController,
                       keyboardType: TextInputType.number,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: '45,200',
-                        prefixIcon:
-                            Icon(Icons.speed_outlined, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.speed_outlined,
+                            color: AppColors.textMuted),
                         suffixText: 'km',
                         suffixStyle: TextStyle(color: AppColors.textMuted),
                       ),
@@ -177,14 +249,14 @@ class _CreateServiceJobView extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _FieldLabel('Assign Mechanic'),
+                        const _FieldLabel('Assign Mechanic'),
                         Text('Skip — assign later',
                             style: AppTextStyles.caption),
                       ],
                     ),
                     const SizedBox(height: 8),
 
-                    controller.isLoadingMechanics
+                    isLoadingMechanics
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
                             child: Center(
@@ -193,17 +265,15 @@ class _CreateServiceJobView extends StatelessWidget {
                             ),
                           )
                         : MechanicPicker(
-                            mechanics: controller.mechanics,
-                            selectedMechanicId: controller.selectedMechanicId,
-                            onSelected: (id) => context
-                                .read<CreateServiceJobController>()
-                                .selectMechanic(id),
+                            mechanics: mechanics,
+                            selectedMechanicId: selectedMechanicId,
+                            onSelected: _selectMechanic,
                           ),
 
-                    if (controller.errorMessage != null) ...[
+                    if (errorMessage != null) ...[
                       const SizedBox(height: 16),
                       Text(
-                        controller.errorMessage!,
+                        errorMessage!,
                         style: const TextStyle(
                             color: AppColors.statusError, fontSize: 13),
                       ),
@@ -213,9 +283,8 @@ class _CreateServiceJobView extends StatelessWidget {
                     AppButton(
                       label: 'Create Job',
                       icon: Icons.bolt,
-                      isLoading: controller.isSubmitting,
-                      onPressed: () =>
-                          context.read<CreateServiceJobController>().submit(),
+                      isLoading: isSubmitting,
+                      onPressed: _submit,
                     ),
                   ],
                 ),

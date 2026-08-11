@@ -19,9 +19,9 @@ class AdvisorTipBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.limeAccent.withOpacity(0.08),
+        color: AppColors.limeAccent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.limeAccent.withOpacity(0.2)),
+        border: Border.all(color: AppColors.limeAccent.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

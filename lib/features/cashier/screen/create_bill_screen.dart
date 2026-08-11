@@ -1,9 +1,8 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
-import '../controller/create_bill_controller.dart';
 import 'invoice_success_screen.dart';
 
 /// Cashier "Create Bill" screen.
@@ -16,7 +15,7 @@ import 'invoice_success_screen.dart';
 ///     vehicleModel: job['service_type'],
 ///     customerName: job['customer_name'],
 ///   )
-class CreateBillScreen extends StatelessWidget {
+class CreateBillScreen extends StatefulWidget {
   const CreateBillScreen({
     super.key,
     required this.jobId,
@@ -37,46 +36,94 @@ class CreateBillScreen extends StatelessWidget {
   final double initialPartsCharge;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CreateBillController(
-        jobId: jobId,
-        jobNumber: jobNumber,
-        vehicleLabel: vehicleLabel,
-        vehicleModel: vehicleModel,
-        customerName: customerName,
-        initialLabourCharge: initialLabourCharge,
-        initialPartsCharge: initialPartsCharge,
-      ),
-      child: const _CreateBillView(),
-    );
-  }
+  State<CreateBillScreen> createState() => _CreateBillScreenState();
 }
 
-class _CreateBillView extends StatelessWidget {
-  const _CreateBillView();
+class _CreateBillScreenState extends State<CreateBillScreen> {
+  late final TextEditingController _labourController;
+  late final TextEditingController _partsController;
+  late final TextEditingController _taxController;
+  late final TextEditingController _discountController;
+
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
+  double get _labourCharge =>
+      double.tryParse(_labourController.text) ?? 0;
+  double get _partsCharge => double.tryParse(_partsController.text) ?? 0;
+  double get _tax => double.tryParse(_taxController.text) ?? 0;
+  double get _discount => double.tryParse(_discountController.text) ?? 0;
+
+  double get _totalAmount =>
+      _labourCharge + _partsCharge + _tax - _discount;
+
+  @override
+  void initState() {
+    super.initState();
+    _labourController = TextEditingController(
+        text: widget.initialLabourCharge.toStringAsFixed(0));
+    _partsController = TextEditingController(
+        text: widget.initialPartsCharge.toStringAsFixed(0));
+    _taxController = TextEditingController(
+        text: (widget.initialLabourCharge * 0.18).toStringAsFixed(0));
+    _discountController = TextEditingController(text: '0');
+
+    _labourController.addListener(_onChanged);
+    _partsController.addListener(_onChanged);
+    _taxController.addListener(_onChanged);
+    _discountController.addListener(_onChanged);
+  }
+
+  void _onChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _labourController.dispose();
+    _partsController.dispose();
+    _taxController.dispose();
+    _discountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final bill = await DemoRepository.instance.createBill(
+        serviceJobId: widget.jobId,
+        labourCharge: _labourCharge,
+        partsCharge: _partsCharge,
+        tax: _tax,
+        discount: _discount,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => InvoiceSuccessScreen(
+            invoiceNumber: bill['invoice_number'] ?? '',
+            serviceEntity: widget.vehicleModel,
+            totalAmount: (bill['total_amount'] as num?)?.toDouble() ?? 0,
+            billId: bill['id'] as int,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<CreateBillController>();
-
-    if (controller.createdSuccessfully) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        final bill = controller.createdBill!;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => InvoiceSuccessScreen(
-              invoiceNumber: bill['invoice_number'] ?? '',
-              serviceEntity: controller.vehicleModel,
-              totalAmount: (bill['total_amount'] as num?)?.toDouble() ?? 0,
-              billId: bill['id'] as int,
-            ),
-          ),
-        );
-      });
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -98,7 +145,7 @@ class _CreateBillView extends StatelessWidget {
                       children: [
                         Text('Cashier - Create Bill',
                             style: AppTextStyles.heading3),
-                        Text(controller.jobNumber, style: AppTextStyles.caption),
+                        Text(widget.jobNumber, style: AppTextStyles.caption),
                       ],
                     ),
                   ),
@@ -133,7 +180,7 @@ class _CreateBillView extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: AppColors.limeAccent.withOpacity(0.15),
+                              color: AppColors.limeAccent.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.directions_car,
@@ -147,10 +194,10 @@ class _CreateBillView extends StatelessWidget {
                                 Text('VEHICLE',
                                     style: AppTextStyles.caption
                                         .copyWith(color: AppColors.limeAccent)),
-                                Text(controller.vehicleModel,
+                                Text(widget.vehicleModel,
                                     style: AppTextStyles.bodyRegular
                                         .copyWith(fontWeight: FontWeight.bold)),
-                                Text(controller.vehicleLabel,
+                                Text(widget.vehicleLabel,
                                     style: AppTextStyles.caption),
                               ],
                             ),
@@ -183,7 +230,7 @@ class _CreateBillView extends StatelessWidget {
                                 Text('CUSTOMER',
                                     style: AppTextStyles.caption
                                         .copyWith(letterSpacing: 0.4)),
-                                Text(controller.customerName,
+                                Text(widget.customerName,
                                     style: AppTextStyles.bodyRegular
                                         .copyWith(fontWeight: FontWeight.bold)),
                               ],
@@ -219,22 +266,22 @@ class _CreateBillView extends StatelessWidget {
 
                           _BillField(
                             label: 'Labour Charge (₹)',
-                            controller: controller.labourController,
+                            controller: _labourController,
                           ),
                           const SizedBox(height: 14),
                           _BillField(
                             label: 'Parts Charge (₹)',
-                            controller: controller.partsController,
+                            controller: _partsController,
                           ),
                           const SizedBox(height: 14),
                           _BillField(
                             label: 'Tax (18% GST) (₹)',
-                            controller: controller.taxController,
+                            controller: _taxController,
                           ),
                           const SizedBox(height: 14),
                           _BillField(
                             label: 'Discount (₹)',
-                            controller: controller.discountController,
+                            controller: _discountController,
                             suffixIcon: Icons.percent,
                           ),
 
@@ -254,7 +301,7 @@ class _CreateBillView extends StatelessWidget {
                                   style: AppTextStyles.heading2
                                       .copyWith(height: 1.1)),
                               Text(
-                                '₹${controller.totalAmount.toStringAsFixed(0)}',
+                                '₹${_totalAmount.toStringAsFixed(0)}',
                                 style: const TextStyle(
                                   color: AppColors.limeAccent,
                                   fontWeight: FontWeight.bold,
@@ -278,10 +325,10 @@ class _CreateBillView extends StatelessWidget {
                       ],
                     ),
 
-                    if (controller.errorMessage != null) ...[
+                    if (_errorMessage != null) ...[
                       const SizedBox(height: 14),
                       Text(
-                        controller.errorMessage!,
+                        _errorMessage!,
                         style: const TextStyle(
                             color: AppColors.statusError, fontSize: 13),
                       ),
@@ -291,9 +338,8 @@ class _CreateBillView extends StatelessWidget {
                     AppButton(
                       label: 'Generate Invoice',
                       icon: Icons.arrow_forward,
-                      isLoading: controller.isSubmitting,
-                      onPressed: () =>
-                          context.read<CreateBillController>().submit(),
+                      isLoading: _isSubmitting,
+                      onPressed: _submit,
                     ),
                   ],
                 ),

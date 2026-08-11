@@ -1,37 +1,109 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/quality_check_controller.dart';
 import '../widgets/checklist_row.dart';
 
 /// Admin "Quality Check" form for a single service job.
 ///
 /// Usage once routing is set up:
 ///   QualityCheckScreen(serviceJobId: job['id'])
-class QualityCheckScreen extends StatelessWidget {
+class QualityCheckScreen extends StatefulWidget {
   const QualityCheckScreen({super.key, required this.serviceJobId});
 
   final int serviceJobId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => QualityCheckController(serviceJobId: serviceJobId)..load(),
-      child: const _QualityCheckView(),
-    );
-  }
+  State<QualityCheckScreen> createState() => _QualityCheckScreenState();
 }
 
-class _QualityCheckView extends StatelessWidget {
-  const _QualityCheckView();
+class _QualityCheckScreenState extends State<QualityCheckScreen> {
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  String? _errorMessage;
+  bool _submittedSuccessfully = false;
+
+  Map<String, dynamic>? _job;
+
+  // Checklist state — keys match the backend field names.
+  final Map<String, String?> _checklist = {
+    'brake_check': null,
+    'engine_check': null,
+    'oil_leakage_check': null,
+    'ac_check': null,
+    'tyre_check': null,
+    'test_drive': null,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final job = await DemoRepository.instance
+          .getServiceJobDetail(widget.serviceJobId);
+      if (!mounted) return;
+      setState(() => _job = job);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load job details. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _setChecklistValue(String key, String value) {
+    setState(() => _checklist[key] = value);
+  }
+
+  bool get _isChecklistComplete => _checklist.values.every((v) => v != null);
+
+  Future<void> _submit(String overallStatus) async {
+    if (!_isChecklistComplete) {
+      setState(() => _errorMessage = 'Please complete every checklist item first');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.submitQualityCheck(
+        serviceJobId: widget.serviceJobId,
+        checklist: _checklist.map((k, v) => MapEntry(k, v!)),
+        overallStatus: overallStatus,
+      );
+      if (!mounted) return;
+      setState(() => _submittedSuccessfully = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorMessage = 'Could not submit quality check. Try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<QualityCheckController>();
-    final job = controller.job;
+    final job = _job;
 
-    if (controller.submittedSuccessfully) {
+    if (_submittedSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -44,13 +116,13 @@ class _QualityCheckView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : controller.errorMessage != null && job == null
+            : _errorMessage != null && job == null
                 ? Center(
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
                 : Column(
@@ -113,7 +185,7 @@ class _QualityCheckView extends StatelessWidget {
                                       height: 44,
                                       decoration: BoxDecoration(
                                         color: AppColors.limeAccent
-                                            .withOpacity(0.15),
+                                            .withValues(alpha: 0.15),
                                         borderRadius:
                                             BorderRadius.circular(14),
                                       ),
@@ -160,59 +232,55 @@ class _QualityCheckView extends StatelessWidget {
 
                               ChecklistRow(
                                 label: 'Brake Check',
-                                selectedValue: controller.checklist['brake_check'],
-                                onChanged: (v) => context
-                                    .read<QualityCheckController>()
-                                    .setChecklistValue('brake_check', v),
+                                selectedValue: _checklist['brake_check'],
+                                onChanged: (v) =>
+                                    _setChecklistValue('brake_check', v),
                               ),
                               ChecklistRow(
                                 label: 'Engine Check',
-                                selectedValue: controller.checklist['engine_check'],
-                                onChanged: (v) => context
-                                    .read<QualityCheckController>()
-                                    .setChecklistValue('engine_check', v),
+                                selectedValue: _checklist['engine_check'],
+                                onChanged: (v) =>
+                                    _setChecklistValue('engine_check', v),
                               ),
                               ChecklistRow(
                                 label: 'Oil Leakage Check',
-                                selectedValue:
-                                    controller.checklist['oil_leakage_check'],
-                                options: const ['no_issue', 'issue_found', 'na'],
+                                selectedValue: _checklist['oil_leakage_check'],
+                                options: const [
+                                  'no_issue',
+                                  'issue_found',
+                                  'na'
+                                ],
                                 displayLabels: const [
                                   'NO ISSUE',
                                   'ISSUE',
                                   'N/A'
                                 ],
-                                onChanged: (v) => context
-                                    .read<QualityCheckController>()
-                                    .setChecklistValue(
-                                        'oil_leakage_check', v),
+                                onChanged: (v) =>
+                                    _setChecklistValue('oil_leakage_check', v),
                               ),
                               ChecklistRow(
                                 label: 'AC Check',
-                                selectedValue: controller.checklist['ac_check'],
-                                onChanged: (v) => context
-                                    .read<QualityCheckController>()
-                                    .setChecklistValue('ac_check', v),
+                                selectedValue: _checklist['ac_check'],
+                                onChanged: (v) =>
+                                    _setChecklistValue('ac_check', v),
                               ),
                               ChecklistRow(
                                 label: 'Tyre Check',
-                                selectedValue: controller.checklist['tyre_check'],
-                                onChanged: (v) => context
-                                    .read<QualityCheckController>()
-                                    .setChecklistValue('tyre_check', v),
+                                selectedValue: _checklist['tyre_check'],
+                                onChanged: (v) =>
+                                    _setChecklistValue('tyre_check', v),
                               ),
                               ChecklistRow(
                                 label: 'Test Drive',
-                                selectedValue: controller.checklist['test_drive'],
-                                onChanged: (v) => context
-                                    .read<QualityCheckController>()
-                                    .setChecklistValue('test_drive', v),
+                                selectedValue: _checklist['test_drive'],
+                                onChanged: (v) =>
+                                    _setChecklistValue('test_drive', v),
                               ),
 
-                              if (controller.errorMessage != null) ...[
+                              if (_errorMessage != null) ...[
                                 const SizedBox(height: 8),
                                 Text(
-                                  controller.errorMessage!,
+                                  _errorMessage!,
                                   style: const TextStyle(
                                       color: AppColors.statusError,
                                       fontSize: 13),
@@ -230,11 +298,9 @@ class _QualityCheckView extends StatelessWidget {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: controller.isSubmitting
+                                onPressed: _isSubmitting
                                     ? null
-                                    : () => context
-                                        .read<QualityCheckController>()
-                                        .submit('approved'),
+                                    : () => _submit('approved'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.statusSuccess,
                                   minimumSize: const Size.fromHeight(52),
@@ -253,11 +319,9 @@ class _QualityCheckView extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: controller.isSubmitting
+                                onPressed: _isSubmitting
                                     ? null
-                                    : () => context
-                                        .read<QualityCheckController>()
-                                        .submit('rework_required'),
+                                    : () => _submit('rework_required'),
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(
                                       color: AppColors.statusError),

@@ -1,24 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/animated_checkmark.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
 import '../../../widgets/common/status_badge.dart';
-import '../controller/create_service_job_controller.dart';
 
 /// Full-screen confirmation shown right after a Service Job is
-/// successfully created. Reads its data from the same
-/// CreateServiceJobController used on the previous screen.
+/// successfully created. Receives the created job directly.
 class JobCreationConfirmationScreen extends StatelessWidget {
-  const JobCreationConfirmationScreen({super.key});
+  const JobCreationConfirmationScreen({super.key, required this.job});
+
+  final Map<String, dynamic> job;
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<CreateServiceJobController>();
-    final job = controller.createdJob;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -53,7 +49,7 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                     Text('Job Created', style: AppTextStyles.heading1),
                     const SizedBox(height: 8),
                     Text(
-                      'Service Job ${job?['job_number'] ?? ''} has been '
+                      'Service Job ${job['job_number'] ?? ''} has been '
                       'registered successfully.',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.bodySecondary,
@@ -72,12 +68,14 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
                               Text('VEHICLE DETAILS',
                                   style: AppTextStyles.caption
                                       .copyWith(letterSpacing: 0.6)),
-                              StatusBadge(status: job?['status'] ?? 'active'),
+                              StatusBadge(
+                                  status: job['status'] ?? 'active'),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -87,8 +85,8 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color:
-                                      AppColors.limeAccent.withOpacity(0.15),
+                                  color: AppColors.limeAccent
+                                      .withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(Icons.directions_car,
@@ -101,24 +99,27 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                                       CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      job?['vehicle_number'] ?? '',
+                                      job['vehicle_number'] ?? '',
                                       style: AppTextStyles.bodyRegular
                                           .copyWith(
                                               fontWeight: FontWeight.bold),
                                     ),
-                                    Text(job?['service_type'] ?? '',
+                                    Text(job['service_type'] ?? '',
                                         style: AppTextStyles.caption),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                          const Divider(color: AppColors.divider, height: 28),
+                          const Divider(
+                              color: AppColors.divider, height: 28),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text('ESTIMATED COMPLETION',
                                       style: AppTextStyles.caption
@@ -144,7 +145,7 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: () => AppRouter.toJobDetailAdvisor(
                           context,
-                          jobId: job?['id'],
+                          jobId: job['id'],
                         ),
                         child: const Text('View Job Details'),
                       ),
@@ -153,12 +154,7 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () {
-                          context
-                              .read<CreateServiceJobController>()
-                              .resetForNewJob();
-                          Navigator.of(context).pop();
-                        },
+                        onPressed: () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.divider),
                           minimumSize: const Size.fromHeight(54),
@@ -177,7 +173,8 @@ class JobCreationConfirmationScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const RoleBottomNav(role: 'advisor', activeIndex: 1),
+      bottomNavigationBar:
+          const RoleBottomNav(role: 'advisor', activeIndex: 1),
     );
   }
 }

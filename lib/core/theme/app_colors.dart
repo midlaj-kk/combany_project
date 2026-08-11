@@ -23,7 +23,6 @@ class AppColors {
 
   // Status colors
   static const Color statusSuccess = Color(0xFF4CD964);
-  static const Color statusPending = Color(0xFFFFC24B);
   static const Color statusError = Color(0xFFFF5A5F);
   static const Color statusNeutral = Color(0xFF7A7A7A);
 

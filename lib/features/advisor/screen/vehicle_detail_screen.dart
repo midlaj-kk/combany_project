@@ -1,52 +1,83 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/vehicle_detail_controller.dart';
 import '../widgets/service_history_tile.dart';
 
 /// Advisor "Vehicle Detail + Service History" screen.
 ///
 /// Usage once routing is set up:
 ///   VehicleDetailScreen(vehicleId: vehicle['id'])
-class VehicleDetailScreen extends StatelessWidget {
+class VehicleDetailScreen extends StatefulWidget {
   const VehicleDetailScreen({super.key, required this.vehicleId});
 
   final int vehicleId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => VehicleDetailController(vehicleId: vehicleId)..load(),
-      child: const _VehicleDetailView(),
-    );
-  }
+  State<VehicleDetailScreen> createState() => _VehicleDetailScreenState();
 }
 
-class _VehicleDetailView extends StatelessWidget {
-  const _VehicleDetailView();
+class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  Map<String, dynamic>? _vehicle;
+  List<dynamic> _history = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final vehicle = await DemoRepository.instance
+          .getVehicleDetail(widget.vehicleId);
+      final history = await DemoRepository.instance
+          .getVehicleHistory(widget.vehicleId);
+      if (!mounted) return;
+      setState(() {
+        _vehicle = vehicle;
+        _history = history;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load vehicle details. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<VehicleDetailController>();
-    final vehicle = controller.vehicle;
+    final vehicle = _vehicle;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : controller.errorMessage != null && vehicle == null
+            : _errorMessage != null && vehicle == null
                 ? Center(
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
                 : RefreshIndicator(
-                    onRefresh: () => context.read<VehicleDetailController>().load(),
+                    onRefresh: _load,
                     color: AppColors.limeAccent,
                     backgroundColor: AppColors.surface,
                     child: SingleChildScrollView(
@@ -102,7 +133,8 @@ class _VehicleDetailView extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             '${vehicle?['brand'] ?? ''} ${vehicle?['model'] ?? ''}',
-                            style: AppTextStyles.heading1.copyWith(fontSize: 24),
+                            style:
+                                AppTextStyles.heading1.copyWith(fontSize: 24),
                           ),
                           const SizedBox(height: 14),
 
@@ -111,14 +143,14 @@ class _VehicleDetailView extends StatelessWidget {
                               Expanded(
                                 child: _InfoBlock(
                                   label: 'YEAR',
-                                  value: (vehicle?['year'] ?? '').toString(),
+                                  value:
+                                      (vehicle?['year'] ?? '').toString(),
                                 ),
                               ),
                               Expanded(
                                 child: _InfoBlock(
                                   label: 'MILEAGE',
-                                  value:
-                                      '${vehicle?['kilometers'] ?? 0} km',
+                                  value: '${vehicle?['kilometers'] ?? 0} km',
                                 ),
                               ),
                             ],
@@ -135,7 +167,8 @@ class _VehicleDetailView extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text('REGISTERED OWNER',
                                       style: AppTextStyles.caption
@@ -143,7 +176,8 @@ class _VehicleDetailView extends StatelessWidget {
                                   Text(
                                     vehicle?['customer_name'] ?? '',
                                     style: AppTextStyles.bodyRegular
-                                        .copyWith(fontWeight: FontWeight.bold),
+                                        .copyWith(
+                                            fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -157,11 +191,14 @@ class _VehicleDetailView extends StatelessWidget {
                             child: ElevatedButton.icon(
                               onPressed: () => AppRouter.toCreateServiceJob(
                                 context,
-                                vehicleId: controller.vehicleId,
-                                vehicleLabel: vehicle?['vehicle_number'] ?? '',
-                                customerName: vehicle?['customer_name'] ?? '',
+                                vehicleId: widget.vehicleId,
+                                vehicleLabel:
+                                    vehicle?['vehicle_number'] ?? '',
+                                customerName:
+                                    vehicle?['customer_name'] ?? '',
                               ),
-                              icon: const Icon(Icons.add, color: Colors.black),
+                              icon: const Icon(Icons.add,
+                                  color: Colors.black),
                               label: const Text('New Service Job'),
                             ),
                           ),
@@ -176,16 +213,17 @@ class _VehicleDetailView extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
 
-                          if (controller.history.isEmpty)
+                          if (_history.isEmpty)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 24),
                               child: Center(
                                 child: Text('No service history yet',
                                     style: AppTextStyles.bodySecondary),
                               ),
                             )
                           else
-                            ...controller.history.map((job) {
+                            ..._history.map((job) {
                               return ServiceHistoryTile(
                                 jobNumber: job['job_number'] ?? '',
                                 serviceType: job['service_type'] ?? '',
@@ -220,8 +258,8 @@ class _VehicleDetailView extends StatelessWidget {
                               Expanded(
                                 child: _SpecCard(
                                   label: 'TRANSMISSION',
-                                  value:
-                                      vehicle?['transmission'] ?? 'Automatic',
+                                  value: vehicle?['transmission'] ??
+                                      'Automatic',
                                 ),
                               ),
                             ],
@@ -241,7 +279,8 @@ class _VehicleDetailView extends StatelessWidget {
                               Expanded(
                                 child: _SpecCard(
                                   label: 'LAST CHECKUP',
-                                  value: vehicle?['last_checkup'] ?? 'N/A',
+                                  value:
+                                      vehicle?['last_checkup'] ?? 'N/A',
                                 ),
                               ),
                             ],
@@ -251,8 +290,9 @@ class _VehicleDetailView extends StatelessWidget {
                     ),
                   ),
       ),
-      bottomNavigationBar:
-          controller.isLoading ? null : const RoleBottomNav(role: 'advisor', activeIndex: 1),
+      bottomNavigationBar: _isLoading
+          ? null
+          : const RoleBottomNav(role: 'advisor', activeIndex: 1),
     );
   }
 }

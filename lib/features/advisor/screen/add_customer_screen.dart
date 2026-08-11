@@ -1,10 +1,9 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
-import '../controller/add_customer_controller.dart';
 import '../widgets/advisor_tip_banner.dart';
 import '../widgets/brand_dropdown.dart';
 import '../widgets/number_stepper.dart';
@@ -13,26 +12,148 @@ import '../widgets/step_progress_indicator.dart';
 /// Advisor "Add Customer + Vehicle" screen — a 2-step form.
 /// Step 1 (Customer) matches the provided Stitch screenshot;
 /// Step 2 (Vehicle) follows immediately after, same visual style.
-class AddCustomerScreen extends StatelessWidget {
+class AddCustomerScreen extends StatefulWidget {
   const AddCustomerScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AddCustomerController(),
-      child: const _AddCustomerView(),
-    );
-  }
+  State<AddCustomerScreen> createState() => _AddCustomerScreenState();
 }
 
-class _AddCustomerView extends StatelessWidget {
-  const _AddCustomerView();
+class _AddCustomerScreenState extends State<AddCustomerScreen> {
+  int currentStep = 1; // 1 = Customer, 2 = Vehicle
+
+  // --- Step 1: Customer fields ---
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
+
+  // --- Step 2: Vehicle fields ---
+  final TextEditingController vehicleNumberController = TextEditingController();
+  String? selectedBrand;
+  final TextEditingController modelController = TextEditingController();
+  int year = DateTime.now().year;
+  final TextEditingController kilometersController = TextEditingController();
+
+  bool isLoading = false;
+  String? errorMessage;
+  bool completedSuccessfully = false;
+
+  int? _createdCustomerId;
+
+  void _setBrand(String? brand) {
+    setState(() => selectedBrand = brand);
+  }
+
+  void _setYear(int newYear) {
+    setState(() => year = newYear);
+  }
+
+  Future<void> _submitCustomerStep() async {
+    if (nameController.text.trim().isEmpty ||
+        phoneController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter at least name and phone number';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final customer = await DemoRepository.instance.createCustomer(
+        name: nameController.text.trim(),
+        phone: phoneController.text.trim(),
+        email: emailController.text.trim(),
+        address: addressController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _createdCustomerId = customer['id'] as int;
+        currentStep = 2;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        errorMessage = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  void _skipVehicleStep() {
+    setState(() => completedSuccessfully = true);
+  }
+
+  Future<void> _submitVehicleStep() async {
+    if (_createdCustomerId == null) {
+      setState(() {
+        errorMessage = 'Customer was not saved correctly. Please start over.';
+      });
+      return;
+    }
+    if (vehicleNumberController.text.trim().isEmpty ||
+        selectedBrand == null ||
+        modelController.text.trim().isEmpty) {
+      setState(() {
+        errorMessage = 'Please fill in vehicle number, brand, and model';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.createVehicle(
+        customerId: _createdCustomerId!,
+        vehicleNumber: vehicleNumberController.text.trim().toUpperCase(),
+        brand: selectedBrand!,
+        model: modelController.text.trim(),
+        year: year,
+        kilometers: int.tryParse(kilometersController.text.trim()),
+      );
+      if (!mounted) return;
+      setState(() => completedSuccessfully = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        errorMessage = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  void _goBackToStep1() {
+    setState(() => currentStep = 1);
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    phoneController.dispose();
+    emailController.dispose();
+    addressController.dispose();
+    vehicleNumberController.dispose();
+    modelController.dispose();
+    kilometersController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AddCustomerController>();
-
-    if (controller.completedSuccessfully) {
+    if (completedSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -54,8 +175,8 @@ class _AddCustomerView extends StatelessWidget {
                 children: [
                   IconButton(
                     onPressed: () {
-                      if (controller.currentStep == 2) {
-                        context.read<AddCustomerController>().goBackToStep1();
+                      if (currentStep == 2) {
+                        _goBackToStep1();
                       } else {
                         Navigator.of(context).maybePop();
                       }
@@ -77,16 +198,16 @@ class _AddCustomerView extends StatelessWidget {
             // --- Step progress ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: StepProgressIndicator(currentStep: controller.currentStep),
+              child: StepProgressIndicator(currentStep: currentStep),
             ),
             const SizedBox(height: 20),
 
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: controller.currentStep == 1
-                    ? _CustomerStep(controller: controller)
-                    : _VehicleStep(controller: controller),
+                child: currentStep == 1
+                    ? _CustomerStep(state: this)
+                    : _VehicleStep(state: this),
               ),
             ),
           ],
@@ -97,8 +218,8 @@ class _AddCustomerView extends StatelessWidget {
 }
 
 class _CustomerStep extends StatelessWidget {
-  const _CustomerStep({required this.controller});
-  final AddCustomerController controller;
+  const _CustomerStep({required this.state});
+  final _AddCustomerScreenState state;
 
   @override
   Widget build(BuildContext context) {
@@ -113,35 +234,35 @@ class _CustomerStep extends StatelessWidget {
         ),
         const SizedBox(height: 24),
 
-        _FieldLabel('Full Name'),
+        const _FieldLabel('Full Name'),
         AppTextField(
-          controller: controller.nameController,
+          controller: state.nameController,
           hint: 'e.g. Julian Anderson',
           icon: Icons.person_outline,
         ),
         const SizedBox(height: 16),
 
-        _FieldLabel('Phone Number'),
+        const _FieldLabel('Phone Number'),
         AppTextField(
-          controller: controller.phoneController,
+          controller: state.phoneController,
           hint: '+1 (555) 000-0000',
           icon: Icons.phone_outlined,
           keyboardType: TextInputType.phone,
         ),
         const SizedBox(height: 16),
 
-        _FieldLabel('Email (Optional)'),
+        const _FieldLabel('Email (Optional)'),
         AppTextField(
-          controller: controller.emailController,
+          controller: state.emailController,
           hint: 'j.anderson@email.com',
           icon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
         ),
         const SizedBox(height: 16),
 
-        _FieldLabel('Residential Address'),
+        const _FieldLabel('Residential Address'),
         AppTextField(
-          controller: controller.addressController,
+          controller: state.addressController,
           hint: 'Street name, City, Zip Code...',
           icon: Icons.location_on_outlined,
         ),
@@ -155,10 +276,10 @@ class _CustomerStep extends StatelessWidget {
               'progress milestones.',
         ),
 
-        if (controller.errorMessage != null) ...[
+        if (state.errorMessage != null) ...[
           const SizedBox(height: 16),
           Text(
-            controller.errorMessage!,
+            state.errorMessage!,
             style: const TextStyle(color: AppColors.statusError, fontSize: 13),
           ),
         ],
@@ -167,9 +288,8 @@ class _CustomerStep extends StatelessWidget {
         AppButton(
           label: 'Next: Add Vehicle',
           icon: Icons.arrow_forward,
-          isLoading: controller.isLoading,
-          onPressed: () =>
-              context.read<AddCustomerController>().submitCustomerStep(),
+          isLoading: state.isLoading,
+          onPressed: () => state._submitCustomerStep(),
         ),
       ],
     );
@@ -177,8 +297,8 @@ class _CustomerStep extends StatelessWidget {
 }
 
 class _VehicleStep extends StatelessWidget {
-  const _VehicleStep({required this.controller});
-  final AddCustomerController controller;
+  const _VehicleStep({required this.state});
+  final _AddCustomerScreenState state;
 
   @override
   Widget build(BuildContext context) {
@@ -188,9 +308,9 @@ class _VehicleStep extends StatelessWidget {
         Text('Add Vehicle', style: AppTextStyles.heading2),
         const SizedBox(height: 20),
 
-        _FieldLabel('Vehicle Number'),
+        const _FieldLabel('Vehicle Number'),
         AppTextField(
-          controller: controller.vehicleNumberController,
+          controller: state.vehicleNumberController,
           hint: 'KA-01-AB-1234',
           icon: Icons.confirmation_number_outlined,
         ),
@@ -203,11 +323,10 @@ class _VehicleStep extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('Brand'),
+                  const _FieldLabel('Brand'),
                   BrandDropdown(
-                    value: controller.selectedBrand,
-                    onChanged: (brand) =>
-                        context.read<AddCustomerController>().setBrand(brand),
+                    value: state.selectedBrand,
+                    onChanged: (brand) => state._setBrand(brand),
                   ),
                 ],
               ),
@@ -217,9 +336,9 @@ class _VehicleStep extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('Model'),
+                  const _FieldLabel('Model'),
                   AppTextField(
-                    controller: controller.modelController,
+                    controller: state.modelController,
                     hint: 'e.g. 911 GT3',
                     icon: Icons.directions_car_outlined,
                   ),
@@ -237,11 +356,10 @@ class _VehicleStep extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('Year'),
+                  const _FieldLabel('Year'),
                   NumberStepper(
-                    value: controller.year,
-                    onChanged: (y) =>
-                        context.read<AddCustomerController>().setYear(y),
+                    value: state.year,
+                    onChanged: (y) => state._setYear(y),
                   ),
                 ],
               ),
@@ -251,9 +369,9 @@ class _VehicleStep extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _FieldLabel('Current Kilometers'),
+                  const _FieldLabel('Current Kilometers'),
                   AppTextField(
-                    controller: controller.kilometersController,
+                    controller: state.kilometersController,
                     hint: '12,500',
                     icon: Icons.speed_outlined,
                     keyboardType: TextInputType.number,
@@ -285,7 +403,7 @@ class _VehicleStep extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        AppColors.background.withOpacity(0.85),
+                        AppColors.background.withValues(alpha: 0.85),
                       ],
                     ),
                   ),
@@ -315,10 +433,10 @@ class _VehicleStep extends StatelessWidget {
           ),
         ),
 
-        if (controller.errorMessage != null) ...[
+        if (state.errorMessage != null) ...[
           const SizedBox(height: 16),
           Text(
-            controller.errorMessage!,
+            state.errorMessage!,
             style: const TextStyle(color: AppColors.statusError, fontSize: 13),
           ),
         ],
@@ -327,16 +445,14 @@ class _VehicleStep extends StatelessWidget {
         AppButton(
           label: 'Save & Continue',
           icon: Icons.arrow_forward,
-          isLoading: controller.isLoading,
-          onPressed: () =>
-              context.read<AddCustomerController>().submitVehicleStep(),
+          isLoading: state.isLoading,
+          onPressed: () => state._submitVehicleStep(),
         ),
         const SizedBox(height: 12),
         Center(
           child: TextButton(
-            onPressed: controller.isLoading
-                ? null
-                : () => context.read<AddCustomerController>().skipVehicleStep(),
+            onPressed:
+                state.isLoading ? null : () => state._skipVehicleStep(),
             child: Text('Skip for now', style: AppTextStyles.bodySecondary),
           ),
         ),

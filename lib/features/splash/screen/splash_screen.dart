@@ -75,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> {
 class _DotGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.03);
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.03);
     const spacing = 24.0;
     for (double x = 0; x < size.width; x += spacing) {
       for (double y = 0; y < size.height; y += spacing) {

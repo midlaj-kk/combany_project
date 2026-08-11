@@ -1,10 +1,9 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/status_badge.dart';
-import '../controller/record_payment_controller.dart';
 import '../widgets/payment_method_selector.dart';
 import 'payment_success_screen.dart';
 
@@ -12,38 +11,129 @@ import 'payment_success_screen.dart';
 ///
 /// Usage once routing is set up:
 ///   RecordPaymentScreen(billId: bill['id'])
-class RecordPaymentScreen extends StatelessWidget {
+class RecordPaymentScreen extends StatefulWidget {
   const RecordPaymentScreen({super.key, required this.billId});
 
   final int billId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => RecordPaymentController(billId: billId)..load(),
-      child: const _RecordPaymentView(),
-    );
-  }
+  State<RecordPaymentScreen> createState() => _RecordPaymentScreenState();
 }
 
-class _RecordPaymentView extends StatelessWidget {
-  const _RecordPaymentView();
+class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
+  final TextEditingController _amountController = TextEditingController();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic>? _bill;
+
+  String _selectedMethod = 'cash';
+  final DateTime _paymentDate = DateTime.now();
+
+  bool _isSubmitting = false;
+  bool _paidSuccessfully = false;
+  bool _fullyPaid = false;
+
+  double get _totalAmount =>
+      (_bill?['total_amount'] as num?)?.toDouble() ?? 0;
+  double get _amountPaid => (_bill?['amount_paid'] as num?)?.toDouble() ?? 0;
+  double get _remaining => _totalAmount - _amountPaid;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final bill = await DemoRepository.instance.getBillDetail(widget.billId);
+      if (!mounted) return;
+      setState(() => _bill = bill);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load bill. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _selectMethod(String method) {
+    setState(() => _selectedMethod = method);
+  }
+
+  void _payFullAmount() {
+    _amountController.text = _remaining.toStringAsFixed(0);
+    setState(() {});
+  }
+
+  Future<void> _confirmPayment() async {
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+    if (amount <= 0) {
+      setState(() {
+        _errorMessage = 'Please enter a valid amount';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.recordPayment(
+        billId: widget.billId,
+        paymentMethod: _selectedMethod,
+        paidAmount: amount,
+        paymentDate:
+            '${_paymentDate.year}-${_paymentDate.month.toString().padLeft(2, '0')}-${_paymentDate.day.toString().padLeft(2, '0')}',
+      );
+      if (!mounted) return;
+      setState(() {
+        _fullyPaid = amount >= _remaining;
+        _paidSuccessfully = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<RecordPaymentController>();
-    final bill = controller.bill;
-
-    if (controller.paidSuccessfully) {
+    if (_paidSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => PaymentSuccessScreen(
-              amountPaid: double.tryParse(controller.amountController.text) ?? 0,
-              fullyPaid: controller.fullyPaid,
-              invoiceNumber: bill?['invoice_number'] ?? '',
-              vehicleModel: bill?['job_number'] ?? '',
+              amountPaid:
+                  double.tryParse(_amountController.text) ?? 0,
+              fullyPaid: _fullyPaid,
+              invoiceNumber: _bill?['invoice_number'] ?? '',
+              vehicleModel: _bill?['job_number'] ?? '',
               serviceType: 'Service Payment',
             ),
           ),
@@ -54,13 +144,13 @@ class _RecordPaymentView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : controller.errorMessage != null && bill == null
+            : _errorMessage != null && _bill == null
                 ? Center(
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
                 : SingleChildScrollView(
@@ -82,8 +172,9 @@ class _RecordPaymentView extends StatelessWidget {
                                 children: [
                                   Text('Record Payment',
                                       style: AppTextStyles.heading3
-                                          .copyWith(color: AppColors.limeAccent)),
-                                  Text(bill?['invoice_number'] ?? '',
+                                          .copyWith(
+                                              color: AppColors.limeAccent)),
+                                  Text(_bill?['invoice_number'] ?? '',
                                       style: AppTextStyles.caption),
                                 ],
                               ),
@@ -114,7 +205,8 @@ class _RecordPaymentView extends StatelessWidget {
                                           .copyWith(letterSpacing: 0.5)),
                                   StatusBadge(
                                       status:
-                                          bill?['payment_status'] ?? 'pending'),
+                                          _bill?['payment_status'] ??
+                                              'pending'),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -124,24 +216,24 @@ class _RecordPaymentView extends StatelessWidget {
                                 children: [
                                   _AmountBlock(
                                     label: 'Total Amount',
-                                    value: controller.totalAmount
-                                        .toStringAsFixed(0),
+                                    value: _totalAmount.toStringAsFixed(0),
                                   ),
                                   _AmountBlock(
                                     label: 'Amount Paid',
                                     value:
-                                        controller.amountPaid.toStringAsFixed(0),
+                                        _amountPaid.toStringAsFixed(0),
                                     align: CrossAxisAlignment.end,
                                   ),
                                 ],
                               ),
-                              const Divider(color: AppColors.divider, height: 24),
+                              const Divider(
+                                  color: AppColors.divider, height: 24),
                               Text('Remaining',
                                   style: AppTextStyles.caption
                                       .copyWith(letterSpacing: 0.4)),
                               const SizedBox(height: 4),
                               Text(
-                                '₹${controller.remaining.toStringAsFixed(0)}',
+                                '₹${_remaining.toStringAsFixed(0)}',
                                 style: const TextStyle(
                                   color: AppColors.limeAccent,
                                   fontWeight: FontWeight.bold,
@@ -158,26 +250,24 @@ class _RecordPaymentView extends StatelessWidget {
                                 .copyWith(letterSpacing: 0.4)),
                         const SizedBox(height: 10),
                         PaymentMethodSelector(
-                          selectedMethod: controller.selectedMethod,
-                          onSelected: (method) => context
-                              .read<RecordPaymentController>()
-                              .selectMethod(method),
+                          selectedMethod: _selectedMethod,
+                          onSelected: _selectMethod,
                         ),
                         const SizedBox(height: 20),
 
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Amount to Pay',
                                 style: AppTextStyles.caption
                                     .copyWith(letterSpacing: 0.4)),
                             TextButton(
-                              onPressed: () => context
-                                  .read<RecordPaymentController>()
-                                  .payFullAmount(),
+                              onPressed: _payFullAmount,
                               child: const Text('Pay Full Amount',
                                   style: TextStyle(
-                                      color: AppColors.limeAccent, fontSize: 12)),
+                                      color: AppColors.limeAccent,
+                                      fontSize: 12)),
                             ),
                           ],
                         ),
@@ -194,7 +284,7 @@ class _RecordPaymentView extends StatelessWidget {
                                   color: AppColors.limeAccent, size: 22),
                               Expanded(
                                 child: TextField(
-                                  controller: controller.amountController,
+                                  controller: _amountController,
                                   keyboardType: const TextInputType
                                       .numberWithOptions(decimal: true),
                                   textAlign: TextAlign.center,
@@ -222,12 +312,13 @@ class _RecordPaymentView extends StatelessWidget {
                               const Icon(Icons.calendar_today_outlined,
                                   color: AppColors.textMuted, size: 16),
                               const SizedBox(width: 10),
-                              Text('Payment Date', style: AppTextStyles.caption),
+                              Text('Payment Date',
+                                  style: AppTextStyles.caption),
                               const Spacer(),
                               Text(
-                                '${controller.paymentDate.day.toString().padLeft(2, '0')}-'
-                                '${_monthAbbr(controller.paymentDate.month)}-'
-                                '${controller.paymentDate.year}',
+                                '${_paymentDate.day.toString().padLeft(2, '0')}-'
+                                '${_monthAbbr(_paymentDate.month)}-'
+                                '${_paymentDate.year}',
                                 style: const TextStyle(
                                     color: AppColors.limeAccent,
                                     fontWeight: FontWeight.bold,
@@ -244,7 +335,7 @@ class _RecordPaymentView extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.amberAccent.withOpacity(0.1),
+                            color: AppColors.amberAccent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -266,10 +357,10 @@ class _RecordPaymentView extends StatelessWidget {
                           ),
                         ),
 
-                        if (controller.errorMessage != null) ...[
+                        if (_errorMessage != null) ...[
                           const SizedBox(height: 14),
                           Text(
-                            controller.errorMessage!,
+                            _errorMessage!,
                             style: const TextStyle(
                                 color: AppColors.statusError, fontSize: 13),
                           ),
@@ -279,10 +370,8 @@ class _RecordPaymentView extends StatelessWidget {
                         AppButton(
                           label: 'Confirm Payment',
                           icon: Icons.check_circle_outline,
-                          isLoading: controller.isSubmitting,
-                          onPressed: () => context
-                              .read<RecordPaymentController>()
-                              .confirmPayment(),
+                          isLoading: _isSubmitting,
+                          onPressed: _confirmPayment,
                         ),
                       ],
                     ),

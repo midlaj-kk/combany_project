@@ -48,7 +48,7 @@ class _LoadingDotsState extends State<LoadingDots>
                 shape: BoxShape.circle,
                 color: isActive
                     ? AppColors.limeAccent
-                    : AppColors.limeAccent.withOpacity(0.25),
+                    : AppColors.limeAccent.withValues(alpha: 0.25),
               ),
             );
           }),

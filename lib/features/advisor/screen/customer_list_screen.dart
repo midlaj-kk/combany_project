@@ -1,31 +1,83 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/customer_list_controller.dart';
 import '../widgets/customer_card.dart';
 
 /// Advisor "Customers" list screen.
-class CustomerListScreen extends StatelessWidget {
+class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CustomerListController()..loadCustomers(),
-      child: const _CustomerListView(),
-    );
-  }
+  State<CustomerListScreen> createState() => _CustomerListScreenState();
 }
 
-class _CustomerListView extends StatelessWidget {
-  const _CustomerListView();
+class _CustomerListScreenState extends State<CustomerListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<dynamic> _customers = [];
+  int _totalCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCustomers() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final customers = await DemoRepository.instance
+          .getCustomers(search: _searchController.text.trim());
+      if (!mounted) return;
+      setState(() {
+        _customers = customers;
+        _totalCount = customers.length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load customers. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _onSearchSubmitted(String _) => _loadCustomers();
+
+  /// Opens the first vehicle of a customer. The raw backend only
+  /// returns vehicle counts, so resolve the id before navigating
+  /// (previously this hardcoded vehicleId: 1, opening the wrong car).
+  Future<void> _openCustomer(Map<String, dynamic> customer) async {
+    try {
+      final vehicles = await DemoRepository.instance
+          .getCustomerVehicles(customer['id'] as int);
+      if (vehicles.isEmpty || !mounted) return;
+      AppRouter.toVehicleDetail(context,
+          vehicleId: vehicles.first['id'] as int);
+    } catch (_) {
+      // Ignore — tapping again will retry.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<CustomerListController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -36,7 +88,11 @@ class _CustomerListView extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: Row(
                 children: [
+                  IconButton(onPressed: (){
+                    Navigator.of(context).maybePop();
+                  }, icon: Icon(Icons.arrow_back)),
                   Expanded(
+                    
                     child: Text('Customers', style: AppTextStyles.heading2),
                   ),
                   Container(
@@ -62,10 +118,9 @@ class _CustomerListView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
-                controller: controller.searchController,
+                controller: _searchController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                onSubmitted:
-                    context.read<CustomerListController>().onSearchSubmitted,
+                onSubmitted: _onSearchSubmitted,
                 decoration: const InputDecoration(
                   hintText: 'Search by name or phone',
                   prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
@@ -85,7 +140,7 @@ class _CustomerListView extends StatelessWidget {
                     style: AppTextStyles.caption.copyWith(letterSpacing: 0.6),
                   ),
                   Text(
-                    '${controller.totalCount} Total',
+                    '$_totalCount Total',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.limeAccent,
                       fontWeight: FontWeight.bold,
@@ -99,29 +154,29 @@ class _CustomerListView extends StatelessWidget {
             // --- Customer list ---
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () =>
-                    context.read<CustomerListController>().loadCustomers(),
+                onRefresh: _loadCustomers,
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
-                child: controller.isLoading
+                child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
                             color: AppColors.limeAccent),
                       )
-                    : controller.errorMessage != null
+                    : _errorMessage != null
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
                               const SizedBox(height: 80),
                               Center(
-                                child: Text(controller.errorMessage!,
+                                child: Text(_errorMessage!,
                                     style: AppTextStyles.bodySecondary),
                               ),
                             ],
                           )
-                        : controller.customers.isEmpty
+                        : _customers.isEmpty
                             ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
                                 children: [
                                   const SizedBox(height: 80),
                                   Center(
@@ -131,20 +186,19 @@ class _CustomerListView extends StatelessWidget {
                                 ],
                               )
                             : ListView.builder(
-                                physics: const AlwaysScrollableScrollPhysics(),
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.fromLTRB(
                                     20, 0, 20, 100),
-                                itemCount: controller.customers.length,
+                                itemCount: _customers.length,
                                 itemBuilder: (context, index) {
-                                  final customer = controller.customers[index];
+                                  final customer = _customers[index];
                                   return CustomerCard(
                                     name: customer['name'] ?? '',
                                     phone: customer['phone'] ?? '',
                                     vehicleCount:
                                         customer['vehicle_count'] ?? 0,
-                                    onTap: () => context
-                                        .read<CustomerListController>()
-                                        .openCustomer(context, customer),
+                                    onTap: () => _openCustomer(customer),
                                   );
                                 },
                               ),

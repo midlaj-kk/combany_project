@@ -1,160 +1,211 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
+import 'package:auto_care_app/core/storage/shared_prefernce.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/mechanic_profile_controller.dart';
 
 /// Mechanic "Profile" screen.
-class MechanicProfileScreen extends StatelessWidget {
+class MechanicProfileScreen extends StatefulWidget {
   const MechanicProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => MechanicProfileController()..load(),
-      child: const _MechanicProfileView(),
-    );
-  }
+  State<MechanicProfileScreen> createState() => _MechanicProfileScreenState();
 }
 
-class _MechanicProfileView extends StatelessWidget {
-  const _MechanicProfileView();
+class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic>? _profile;
+
+  // TODO: wire these up to real backend stats once a
+  // "mechanic productivity" endpoint scoped to self is available.
+  final int _jobsCompletedThisMonth = 15;
+  final String _avgCompletionTime = '3h 20m';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final profile = await DemoRepository.instance.getMyProfile();
+      if (!mounted) return;
+      setState(() => _profile = profile);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load profile. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    await SharedPrefernceStorage().clearAll();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<MechanicProfileController>();
-    final profile = controller.profile;
+    final profile = _profile;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- Header ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'MECHANIC - PROFILE',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.limeAccent,
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: AppColors.cardBackground,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.settings_outlined,
-                              color: AppColors.textPrimary, size: 18),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // --- Avatar + name ---
-                    Center(
-                      child: Column(
+            : RefreshIndicator(
+                onRefresh: _load,
+                color: AppColors.limeAccent,
+                backgroundColor: AppColors.surface,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // --- Header ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Stack(
-                            children: [
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: AppColors.limeAccent, width: 2),
-                                ),
-                                child: const CircleAvatar(
-                                  backgroundColor: AppColors.inputFill,
-                                  child: Icon(Icons.person,
-                                      size: 40, color: AppColors.textMuted),
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 4,
-                                right: 4,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.statusSuccess,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: AppColors.background, width: 2),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
                           Text(
-                            profile?['name'] ?? '',
-                            style: AppTextStyles.heading2,
+                            'MECHANIC - PROFILE',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.limeAccent,
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.limeAccent.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(20),
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppColors.cardBackground,
+                              shape: BoxShape.circle,
                             ),
-                            child: Text(
-                              (profile?['specialization'] ?? 'MECHANIC')
-                                  .toString()
-                                  .toUpperCase(),
-                              style: const TextStyle(
-                                color: AppColors.limeAccent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
+                            child: const Icon(Icons.settings_outlined,
+                                color: AppColors.textPrimary, size: 18),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 24),
 
-                    // --- Stat cards ---
-                    _StatRow(
-                      icon: Icons.emoji_events_outlined,
-                      label: 'JOBS COMPLETED THIS MONTH',
-                      value: controller.jobsCompletedThisMonth.toString(),
-                    ),
-                    const SizedBox(height: 12),
-                    _StatRow(
-                      icon: Icons.access_time,
-                      label: 'AVG. COMPLETION TIME',
-                      value: controller.avgCompletionTime,
-                    ),
-                    const SizedBox(height: 24),
+                      if (_errorMessage != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(_errorMessage!,
+                              style: AppTextStyles.bodySecondary),
+                        ),
+                      ],
 
-                    // --- Settings list ---
-                    _SettingsTile(
-                      icon: Icons.logout,
-                      label: 'Logout',
-                      isDestructive: true,
-                      onTap: () async {
-                        await context.read<MechanicProfileController>().logout();
-                        if (context.mounted) AppRouter.toLogin(context, replace: true);
-                      },
-                    ),
-                  ],
+                      // --- Avatar + name ---
+                      Center(
+                        child: Column(
+                          children: [
+                            Stack(
+                              children: [
+                                Container(
+                                  width: 96,
+                                  height: 96,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: AppColors.limeAccent,
+                                        width: 2),
+                                  ),
+                                  child: const CircleAvatar(
+                                    backgroundColor: AppColors.inputFill,
+                                    child: Icon(Icons.person,
+                                        size: 40, color: AppColors.textMuted),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 4,
+                                  right: 4,
+                                  child: Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.statusSuccess,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: AppColors.background,
+                                          width: 2),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              profile?['name'] ?? '',
+                              style: AppTextStyles.heading2,
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.limeAccent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                (profile?['specialization'] ?? 'MECHANIC')
+                                    .toString()
+                                    .toUpperCase(),
+                                style: const TextStyle(
+                                  color: AppColors.limeAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // --- Stat cards ---
+                      _StatRow(
+                        icon: Icons.emoji_events_outlined,
+                        label: 'JOBS COMPLETED THIS MONTH',
+                        value: _jobsCompletedThisMonth.toString(),
+                      ),
+                      const SizedBox(height: 12),
+                      _StatRow(
+                        icon: Icons.access_time,
+                        label: 'AVG. COMPLETION TIME',
+                        value: _avgCompletionTime,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // --- Settings list ---
+                      _SettingsTile(
+                        icon: Icons.logout,
+                        label: 'Logout',
+                        isDestructive: true,
+                        onTap: () async {
+                          await _logout();
+                          if (context.mounted) {
+                            AppRouter.toLogin(context, replace: true);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
       ),
@@ -239,7 +290,7 @@ class _SettingsTile extends StatelessWidget {
                 color: (isDestructive
                         ? AppColors.statusError
                         : AppColors.limeAccent)
-                    .withOpacity(0.12),
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 18),

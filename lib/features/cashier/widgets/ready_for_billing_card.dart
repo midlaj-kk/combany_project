@@ -48,7 +48,7 @@ class ReadyForBillingCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(vehicleInfo, style: AppTextStyles.caption, maxLines: 1),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

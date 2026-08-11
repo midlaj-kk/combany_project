@@ -28,7 +28,7 @@ class RoleFilterTabs extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final (value, label) = _tabs[index];
           final isSelected = value == selectedRole;

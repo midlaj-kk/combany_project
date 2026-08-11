@@ -433,7 +433,7 @@ class DemoRepository {
     return job;
   }
 
-  Future<void> assignMechanic(int jobId, int mechanicId) async {
+  Future<void> changeMechanic(int jobId, int mechanicId) async {
     final job = _data.findJob(jobId);
     final mechanic = _data.findStaff(mechanicId);
     if (job == null || mechanic == null) return;
@@ -444,19 +444,11 @@ class DemoRepository {
     job['updated_at'] = _now();
   }
 
-  Future<void> changeMechanic(int jobId, int mechanicId) async {
-    await assignMechanic(jobId, mechanicId);
-  }
-
   Future<void> updateJobStatus(int jobId, String status) async {
     final job = _data.findJob(jobId);
     if (job == null) return;
     job['status'] = status;
     job['updated_at'] = _now();
-  }
-
-  Future<void> cancelJob(int jobId) async {
-    _data.jobs.removeWhere((j) => j['id'] == jobId);
   }
 
   // -------------------------------------------------------------------
@@ -503,10 +495,6 @@ class DemoRepository {
         return;
       }
     }
-  }
-
-  Future<void> deleteWork(int workId) async {
-    _data.works.removeWhere((w) => w['id'] == workId);
   }
 
   Future<List<dynamic>> getPartsUsed(int jobId) async {

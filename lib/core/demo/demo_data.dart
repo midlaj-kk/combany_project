@@ -22,7 +22,6 @@ class DemoData {
   int _nextCustomerId = 100;
   int _nextVehicleId = 100;
   int _nextStaffId = 100;
-  int _nextPartId = 100;
   int _nextJobId = 100;
   int _nextWorkId = 100;
   int _nextPartUsedId = 100;
@@ -833,7 +832,6 @@ class DemoData {
   int nextCustomerId() => _nextCustomerId++;
   int nextVehicleId() => _nextVehicleId++;
   int nextStaffId() => _nextStaffId++;
-  int nextPartId() => _nextPartId++;
   int nextJobId() => _nextJobId++;
   int nextWorkId() => _nextWorkId++;
   int nextPartUsedId() => _nextPartUsedId++;

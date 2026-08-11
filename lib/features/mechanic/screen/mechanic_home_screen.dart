@@ -1,29 +1,22 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/mechanic_home_controller.dart';
 import '../widgets/mechanic_job_card.dart';
 
 /// Mechanic home screen — matches the Stitch "Mechanic Home
-/// Dashboard" design.
-class MechanicHomeScreen extends StatelessWidget {
+/// Dashboard" design. Reads static demo data directly from
+/// [DemoRepository].
+class MechanicHomeScreen extends StatefulWidget {
   const MechanicHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => MechanicHomeController()..loadJobs(),
-      child: const _MechanicHomeView(),
-    );
-  }
+  State<MechanicHomeScreen> createState() => _MechanicHomeScreenState();
 }
 
-class _MechanicHomeView extends StatelessWidget {
-  const _MechanicHomeView();
-
+class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
   static const _tabs = [
     ('all', 'All'),
     ('waiting', 'Waiting'),
@@ -31,15 +24,93 @@ class _MechanicHomeView extends StatelessWidget {
     ('rework', 'Rework'),
   ];
 
+  bool _isLoading = true;
+  String? _errorMessage;
+  String _selectedFilter = 'all'; // all | waiting | in_progress | rework
+
+  int _assignedCount = 0;
+  int _completedTodayCount = 0;
+  List<dynamic> _jobs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJobs();
+  }
+
+  Future<void> _loadJobs() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Backend already scopes /service-jobs/ to this mechanic only.
+      final allJobs = await DemoRepository.instance.getMyJobs();
+      final assigned = allJobs
+          .where((j) => j['status'] != 'delivered' && j['status'] != 'cancelled')
+          .length;
+
+      final today = DateTime.now();
+      final completedToday = allJobs.where((j) {
+        if (j['status'] != 'qc_pending' && j['status'] != 'ready_for_bill') {
+          return false;
+        }
+        final updated = DateTime.tryParse(j['updated_at'] ?? '');
+        return updated != null &&
+            updated.year == today.year &&
+            updated.month == today.month &&
+            updated.day == today.day;
+      }).length;
+
+      if (!mounted) return;
+      setState(() {
+        _assignedCount = assigned;
+        _completedTodayCount = completedToday;
+        _jobs = _selectedFilter == 'all'
+            ? allJobs
+            : _selectedFilter == 'rework'
+                ? allJobs
+                    .where((j) => j['status'] == 'rework_required')
+                    .toList()
+                : allJobs
+                    .where((j) => j['status'] == _selectedFilter)
+                    .toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load your jobs. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _setFilter(String filter) {
+    setState(() => _selectedFilter = filter);
+    _loadJobs();
+  }
+
+  String _timeAgo(String? isoDate) {
+    if (isoDate == null) return '';
+    final date = DateTime.tryParse(isoDate);
+    if (date == null) return '';
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
+    return '${diff.inDays}d ago';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<MechanicHomeController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => context.read<MechanicHomeController>().loadJobs(),
+          onRefresh: _loadJobs,
           color: AppColors.limeAccent,
           backgroundColor: AppColors.surface,
           child: SingleChildScrollView(
@@ -89,9 +160,7 @@ class _MechanicHomeView extends StatelessWidget {
                     Expanded(
                       child: _StatCard(
                         label: 'ASSIGNED TO ME',
-                        value: controller.assignedCount
-                            .toString()
-                            .padLeft(2, '0'),
+                        value: _assignedCount.toString().padLeft(2, '0'),
                         icon: Icons.build_outlined,
                       ),
                     ),
@@ -99,9 +168,8 @@ class _MechanicHomeView extends StatelessWidget {
                     Expanded(
                       child: _StatCard(
                         label: 'COMPLETED TODAY',
-                        value: controller.completedTodayCount
-                            .toString()
-                            .padLeft(2, '0'),
+                        value:
+                            _completedTodayCount.toString().padLeft(2, '0'),
                         icon: Icons.check_circle_outline,
                       ),
                     ),
@@ -115,16 +183,14 @@ class _MechanicHomeView extends StatelessWidget {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _tabs.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final (value, label) = _tabs[index];
-                      final isSelected = value == controller.selectedFilter;
+                      final isSelected = value == _selectedFilter;
                       return ChoiceChip(
                         label: Text(label),
                         selected: isSelected,
-                        onSelected: (_) => context
-                            .read<MechanicHomeController>()
-                            .setFilter(value),
+                        onSelected: (_) => _setFilter(value),
                         backgroundColor: AppColors.cardBackground,
                         selectedColor: AppColors.limeAccent,
                         labelStyle: TextStyle(
@@ -149,7 +215,7 @@ class _MechanicHomeView extends StatelessWidget {
                     style: AppTextStyles.caption.copyWith(letterSpacing: 0.8)),
                 const SizedBox(height: 10),
 
-                if (controller.isLoading)
+                if (_isLoading)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
                     child: Center(
@@ -157,13 +223,13 @@ class _MechanicHomeView extends StatelessWidget {
                           color: AppColors.limeAccent),
                     ),
                   )
-                else if (controller.errorMessage != null)
+                else if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
-                else if (controller.jobs.isEmpty)
+                else if (_jobs.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Center(
@@ -172,7 +238,7 @@ class _MechanicHomeView extends StatelessWidget {
                     ),
                   )
                 else
-                  ...controller.jobs.map((job) {
+                  ..._jobs.map((job) {
                     return MechanicJobCard(
                       jobNumber: job['job_number'] ?? '',
                       vehicleInfo: job['vehicle_number'] ?? '',
@@ -193,16 +259,6 @@ class _MechanicHomeView extends StatelessWidget {
       ),
       bottomNavigationBar: const RoleBottomNav(role: 'mechanic'),
     );
-  }
-
-  String _timeAgo(String? isoDate) {
-    if (isoDate == null) return '';
-    final date = DateTime.tryParse(isoDate);
-    if (date == null) return '';
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
-    return '${diff.inDays}d ago';
   }
 }
 
@@ -232,10 +288,10 @@ class _StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style:
-                        AppTextStyles.caption.copyWith(letterSpacing: 0.4)),
+                    style: AppTextStyles.caption.copyWith(letterSpacing: 0.4)),
                 const SizedBox(height: 6),
-                Text(value, style: AppTextStyles.heading1.copyWith(fontSize: 26)),
+                Text(value,
+                    style: AppTextStyles.heading1.copyWith(fontSize: 26)),
               ],
             ),
           ),

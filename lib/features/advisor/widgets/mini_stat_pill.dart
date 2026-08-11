@@ -33,7 +33,7 @@ class MiniStatPill extends StatelessWidget {
             label.toUpperCase(),
             style: AppTextStyles.caption.copyWith(
               color: isHighlighted
-                  ? Colors.black.withOpacity(0.6)
+                  ? Colors.black.withValues(alpha: 0.6)
                   : AppColors.textMuted,
               letterSpacing: 0.5,
             ),

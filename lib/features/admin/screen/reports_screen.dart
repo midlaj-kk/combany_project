@@ -1,40 +1,107 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/reports_controller.dart';
 import '../widgets/report_card.dart';
 
 /// Admin "Reports" dashboard screen.
-class ReportsScreen extends StatelessWidget {
+class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ReportsController()..loadReports(),
-      child: const _ReportsView(),
-    );
-  }
+  State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsView extends StatelessWidget {
-  const _ReportsView();
+class _ReportsScreenState extends State<ReportsScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  double _revenueThisMonth = 0;
+  int _completedServices = 0;
+  String _topMechanicName = '';
+  int _topMechanicJobs = 0;
+  String _mostUsedPartName = '';
+  double _pendingPaymentsTotal = 0;
+  int _lowStockCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReports();
+  }
+
+  Future<void> _loadReports() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final now = DateTime.now();
+      final monthStart =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      final revenue = await DemoRepository.instance
+          .getMonthlyRevenue(now.month, now.year);
+      final completed = await DemoRepository.instance
+          .getCompletedServices(monthStart, today);
+      final productivity = await DemoRepository.instance
+          .getMechanicProductivity(monthStart, today);
+      final partsUsage = await DemoRepository.instance
+          .getSparePartsUsage(monthStart, today);
+      final pending = await DemoRepository.instance
+          .getPendingPaymentsReport();
+      final lowStock = await DemoRepository.instance
+          .getSpareParts(lowStockOnly: true);
+
+      final mechanics =
+          productivity['mechanics'] as List<dynamic>? ?? [];
+      final parts = partsUsage['parts'] as List<dynamic>? ?? [];
+
+      if (!mounted) return;
+      setState(() {
+        _revenueThisMonth = (revenue['total_revenue'] as num?)?.toDouble() ?? 0;
+        _completedServices = completed['total_completed'] ?? 0;
+        if (mechanics.isNotEmpty) {
+          _topMechanicName = mechanics.first['mechanic_name'] ?? '';
+          _topMechanicJobs = mechanics.first['completed_jobs'] ?? 0;
+        }
+        if (parts.isNotEmpty) {
+          _mostUsedPartName = parts.first['part_name'] ?? '';
+        }
+        _pendingPaymentsTotal = pending.fold<double>(
+          0,
+          (sum, bill) =>
+              sum + ((bill['total_amount'] as num?)?.toDouble() ?? 0),
+        );
+        _lowStockCount = lowStock.length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load reports. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ReportsController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
             : RefreshIndicator(
-                onRefresh: () => context.read<ReportsController>().loadReports(),
+                onRefresh: _loadReports,
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
                 child: SingleChildScrollView(
@@ -94,8 +161,8 @@ class _ReportsView extends StatelessWidget {
                           style: AppTextStyles.heading1.copyWith(fontSize: 26)),
                       const SizedBox(height: 20),
 
-                      if (controller.errorMessage != null) ...[
-                        Text(controller.errorMessage!,
+                      if (_errorMessage != null) ...[
+                        Text(_errorMessage!,
                             style: const TextStyle(
                                 color: AppColors.statusError, fontSize: 13)),
                         const SizedBox(height: 12),
@@ -105,34 +172,35 @@ class _ReportsView extends StatelessWidget {
                         icon: Icons.show_chart,
                         iconColor: AppColors.statusSuccess,
                         title: 'Revenue Report',
-                        value: '₹${controller.revenueThisMonth.toStringAsFixed(0)}',
+                        value:
+                            '₹${_revenueThisMonth.toStringAsFixed(0)}',
                         subtitle: 'this month',
                       ),
                       ReportCard(
                         icon: Icons.verified_outlined,
                         iconColor: AppColors.statusSuccess,
                         title: 'Completed Services',
-                        value: '${controller.completedServices} jobs',
+                        value: '$_completedServices jobs',
                         subtitle: 'this month',
                       ),
                       ReportCard(
                         icon: Icons.people_outline,
                         iconColor: AppColors.limeAccent,
                         title: 'Mechanic Productivity',
-                        value: controller.topMechanicName.isEmpty
+                        value: _topMechanicName.isEmpty
                             ? 'No data'
-                            : controller.topMechanicName,
-                        subtitle: controller.topMechanicName.isEmpty
+                            : _topMechanicName,
+                        subtitle: _topMechanicName.isEmpty
                             ? ''
-                            : '${controller.topMechanicJobs} jobs completed',
+                            : '$_topMechanicJobs jobs completed',
                       ),
                       ReportCard(
                         icon: Icons.inventory_2_outlined,
                         iconColor: AppColors.limeAccent,
                         title: 'Spare Parts Usage',
-                        value: controller.mostUsedPartName.isEmpty
+                        value: _mostUsedPartName.isEmpty
                             ? 'No data'
-                            : 'Most used: ${controller.mostUsedPartName}',
+                            : 'Most used: $_mostUsedPartName',
                         subtitle: 'this month',
                       ),
                       ReportCard(
@@ -140,7 +208,7 @@ class _ReportsView extends StatelessWidget {
                         iconColor: AppColors.amberAccent,
                         title: 'Pending Payments',
                         value:
-                            '₹${controller.pendingPaymentsTotal.toStringAsFixed(0)}',
+                            '₹${_pendingPaymentsTotal.toStringAsFixed(0)}',
                         subtitle: 'action needed',
                         valueColor: AppColors.amberAccent,
                         onTap: () => AppRouter.toPendingPayments(context),
@@ -149,7 +217,7 @@ class _ReportsView extends StatelessWidget {
                         icon: Icons.warning_amber_rounded,
                         iconColor: AppColors.statusError,
                         title: 'Low Stock Report',
-                        value: '${controller.lowStockCount} items critical',
+                        value: '$_lowStockCount items critical',
                         subtitle: 'restock recommended',
                         valueColor: AppColors.statusError,
                         onTap: () => AppRouter.toInventory(context),

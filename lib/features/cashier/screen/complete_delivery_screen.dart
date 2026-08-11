@@ -1,11 +1,10 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/animated_checkmark.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
-import '../controller/complete_delivery_controller.dart';
 
 /// Cashier "Complete Delivery" screen.
 ///
@@ -16,7 +15,7 @@ import '../controller/complete_delivery_controller.dart';
 ///     vehicleLabel: job['vehicle_number'],
 ///     customerName: job['customer_name'],
 ///   )
-class CompleteDeliveryScreen extends StatelessWidget {
+class CompleteDeliveryScreen extends StatefulWidget {
   const CompleteDeliveryScreen({
     super.key,
     required this.jobId,
@@ -31,27 +30,63 @@ class CompleteDeliveryScreen extends StatelessWidget {
   final String customerName;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CompleteDeliveryController(
-        jobId: jobId,
-        jobNumber: jobNumber,
-        vehicleLabel: vehicleLabel,
-        customerName: customerName,
-      ),
-      child: const _CompleteDeliveryView(),
-    );
-  }
+  State<CompleteDeliveryScreen> createState() =>
+      _CompleteDeliveryScreenState();
 }
 
-class _CompleteDeliveryView extends StatelessWidget {
-  const _CompleteDeliveryView();
+class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
+  DateTime _deliveryDateTime = DateTime.now();
+  bool _customerReceived = true;
+  final TextEditingController _remarksController = TextEditingController();
+
+  bool _isSubmitting = false;
+  bool _completedSuccessfully = false;
+  String? _errorMessage;
+
+  void _setDateTime(DateTime newDateTime) {
+    setState(() => _deliveryDateTime = newDateTime);
+  }
+
+  void _toggleCustomerReceived(bool value) {
+    setState(() => _customerReceived = value);
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DemoRepository.instance.completeDelivery(
+        serviceJobId: widget.jobId,
+        deliveryDate: _deliveryDateTime.toIso8601String(),
+        customerReceived: _customerReceived,
+        remarks: _remarksController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() => _completedSuccessfully = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _remarksController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<CompleteDeliveryController>();
-
-    if (controller.completedSuccessfully) {
+    if (_completedSuccessfully) {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
@@ -76,7 +111,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                     textAlign: TextAlign.center, style: AppTextStyles.heading1),
                 const SizedBox(height: 8),
                 Text(
-                  'The service lifecycle for ${controller.jobNumber} is now '
+                  'The service lifecycle for ${widget.jobNumber} is now '
                   'complete.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.bodySecondary,
@@ -86,7 +121,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.statusSuccess.withOpacity(0.12),
+                    color: AppColors.statusSuccess.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text('JOB COMPLETE',
@@ -116,22 +151,22 @@ class _CompleteDeliveryView extends StatelessWidget {
                       _SummaryRow(
                         icon: Icons.directions_car_outlined,
                         label: 'Vehicle',
-                        value: controller.vehicleLabel,
+                        value: widget.vehicleLabel,
                       ),
                       const SizedBox(height: 12),
                       _SummaryRow(
                         icon: Icons.person_outline,
                         label: 'Owner',
-                        value: controller.customerName,
+                        value: widget.customerName,
                       ),
                       const SizedBox(height: 12),
                       _SummaryRow(
                         icon: Icons.event_available_outlined,
                         label: 'Delivered On',
                         value:
-                            '${_monthName(controller.deliveryDateTime.month)} '
-                            '${controller.deliveryDateTime.day}, '
-                            '${controller.deliveryDateTime.year}',
+                            '${_monthName(_deliveryDateTime.month)} '
+                            '${_deliveryDateTime.day}, '
+                            '${_deliveryDateTime.year}',
                       ),
                     ],
                   ),
@@ -150,7 +185,8 @@ class _CompleteDeliveryView extends StatelessWidget {
             ),
           ),
         ),
-        bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
+        bottomNavigationBar:
+            const RoleBottomNav(role: 'cashier', activeIndex: 2),
       );
     }
 
@@ -199,7 +235,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.limeAccent.withOpacity(0.15),
+                            color: AppColors.limeAccent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text('PREMIUM',
@@ -211,8 +247,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(controller.vehicleLabel,
-                        style: AppTextStyles.heading3),
+                    Text(widget.vehicleLabel, style: AppTextStyles.heading3),
                     const SizedBox(height: 14),
                     Row(
                       children: [
@@ -223,7 +258,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                               Text('CUSTOMER',
                                   style: AppTextStyles.caption
                                       .copyWith(letterSpacing: 0.4)),
-                              Text(controller.customerName,
+                              Text(widget.customerName,
                                   style: AppTextStyles.bodyRegular
                                       .copyWith(fontWeight: FontWeight.bold)),
                             ],
@@ -235,7 +270,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                             Text('JOB NUMBER',
                                 style: AppTextStyles.caption
                                     .copyWith(letterSpacing: 0.4)),
-                            Text(controller.jobNumber,
+                            Text(widget.jobNumber,
                                 style: const TextStyle(
                                     color: AppColors.limeAccent,
                                     fontWeight: FontWeight.bold,
@@ -265,10 +300,10 @@ class _CompleteDeliveryView extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '${_monthAbbr(controller.deliveryDateTime.month)} '
-                        '${controller.deliveryDateTime.day}, '
-                        '${controller.deliveryDateTime.year} - '
-                        '${_formatHour(controller.deliveryDateTime)}',
+                        '${_monthAbbr(_deliveryDateTime.month)} '
+                        '${_deliveryDateTime.day}, '
+                        '${_deliveryDateTime.year} - '
+                        '${_formatHour(_deliveryDateTime)}',
                         style: AppTextStyles.bodyRegular
                             .copyWith(fontWeight: FontWeight.w600),
                       ),
@@ -279,21 +314,23 @@ class _CompleteDeliveryView extends StatelessWidget {
                       onPressed: () async {
                         final pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: controller.deliveryDateTime,
-                          firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          initialDate: _deliveryDateTime,
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 1)),
+                          lastDate: DateTime.now()
+                              .add(const Duration(days: 365)),
                         );
                         if (pickedDate == null || !context.mounted) return;
                         final pickedTime = await showTimePicker(
                           context: context,
                           initialTime:
-                              TimeOfDay.fromDateTime(controller.deliveryDateTime),
+                              TimeOfDay.fromDateTime(_deliveryDateTime),
                         );
                         if (pickedTime == null || !context.mounted) return;
-                        context.read<CompleteDeliveryController>().setDateTime(
-                              DateTime(pickedDate.year, pickedDate.month,
-                                  pickedDate.day, pickedTime.hour, pickedTime.minute),
-                            );
+                        _setDateTime(
+                          DateTime(pickedDate.year, pickedDate.month,
+                              pickedDate.day, pickedTime.hour, pickedTime.minute),
+                        );
                       },
                       icon: const Icon(Icons.edit_outlined,
                           color: AppColors.textMuted, size: 16),
@@ -316,11 +353,9 @@ class _CompleteDeliveryView extends StatelessWidget {
                           style: AppTextStyles.bodyRegular),
                     ),
                     Switch(
-                      value: controller.customerReceived,
+                      value: _customerReceived,
                       activeThumbColor: AppColors.limeAccent,
-                      onChanged: (v) => context
-                          .read<CompleteDeliveryController>()
-                          .toggleCustomerReceived(v),
+                      onChanged: _toggleCustomerReceived,
                     ),
                   ],
                 ),
@@ -331,7 +366,7 @@ class _CompleteDeliveryView extends StatelessWidget {
                   style: AppTextStyles.caption.copyWith(letterSpacing: 0.5)),
               const SizedBox(height: 8),
               TextField(
-                controller: controller.remarksController,
+                controller: _remarksController,
                 maxLines: 3,
                 style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
@@ -359,10 +394,10 @@ class _CompleteDeliveryView extends StatelessWidget {
                 ),
               ),
 
-              if (controller.errorMessage != null) ...[
+              if (_errorMessage != null) ...[
                 const SizedBox(height: 14),
                 Text(
-                  controller.errorMessage!,
+                  _errorMessage!,
                   style: const TextStyle(
                       color: AppColors.statusError, fontSize: 13),
                 ),
@@ -372,15 +407,15 @@ class _CompleteDeliveryView extends StatelessWidget {
               AppButton(
                 label: 'Confirm Delivery',
                 icon: Icons.local_shipping_outlined,
-                isLoading: controller.isSubmitting,
-                onPressed: () =>
-                    context.read<CompleteDeliveryController>().submit(),
+                isLoading: _isSubmitting,
+                onPressed: _submit,
               ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
+      bottomNavigationBar:
+          const RoleBottomNav(role: 'cashier', activeIndex: 2),
     );
   }
 
@@ -426,7 +461,7 @@ class _SummaryRow extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: AppColors.limeAccent.withOpacity(0.12),
+            color: AppColors.limeAccent.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: AppColors.limeAccent, size: 16),

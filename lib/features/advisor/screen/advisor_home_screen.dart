@@ -1,30 +1,22 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/advisor_home_controller.dart';
 import '../widgets/advisor_job_card.dart';
 import '../widgets/mini_stat_pill.dart';
 
 /// Service Advisor home screen — matches the Stitch "Service Advisor
-/// Home" design.
-class AdvisorHomeScreen extends StatelessWidget {
+/// Home" design. Reads static demo data directly from [DemoRepository].
+class AdvisorHomeScreen extends StatefulWidget {
   const AdvisorHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AdvisorHomeController()..loadJobs(),
-      child: const _AdvisorHomeView(),
-    );
-  }
+  State<AdvisorHomeScreen> createState() => _AdvisorHomeScreenState();
 }
 
-class _AdvisorHomeView extends StatelessWidget {
-  const _AdvisorHomeView();
-
+class _AdvisorHomeScreenState extends State<AdvisorHomeScreen> {
   static const _tabs = [
     ('all', 'All'),
     ('waiting', 'Waiting'),
@@ -32,15 +24,71 @@ class _AdvisorHomeView extends StatelessWidget {
     ('qc_pending', 'QC Pending'),
   ];
 
+  bool _isLoading = true;
+  String? _errorMessage;
+  String _selectedFilter = 'all'; // all | waiting | in_progress | qc_pending
+
+  int _waitingCount = 0;
+  int _inProgressCount = 0;
+  int _qcPendingCount = 0;
+  List<dynamic> _jobs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJobs();
+  }
+
+  Future<void> _loadJobs() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Fetch all jobs once to compute the stat counts, then apply
+      // the selected tab filter for the displayed list.
+      final allJobs = await DemoRepository.instance.getJobs();
+      final waiting =
+          allJobs.where((j) => j['status'] == 'waiting').length;
+      final inProgress =
+          allJobs.where((j) => j['status'] == 'in_progress').length;
+      final qcPending =
+          allJobs.where((j) => j['status'] == 'qc_pending').length;
+
+      if (!mounted) return;
+      setState(() {
+        _waitingCount = waiting;
+        _inProgressCount = inProgress;
+        _qcPendingCount = qcPending;
+        _jobs = _selectedFilter == 'all'
+            ? allJobs
+            : allJobs.where((j) => j['status'] == _selectedFilter).toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load jobs. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _setFilter(String filter) {
+    setState(() => _selectedFilter = filter);
+    _loadJobs();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<AdvisorHomeController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => context.read<AdvisorHomeController>().loadJobs(),
+          onRefresh: _loadJobs,
           color: AppColors.limeAccent,
           backgroundColor: AppColors.surface,
           child: SingleChildScrollView(
@@ -95,7 +143,7 @@ class _AdvisorHomeView extends StatelessWidget {
                         end: Alignment.bottomRight,
                         colors: [
                           AppColors.limeAccent,
-                          AppColors.limeAccent.withOpacity(0.7),
+                          AppColors.limeAccent.withValues(alpha: 0.7),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(24),
@@ -107,7 +155,7 @@ class _AdvisorHomeView extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.add,
@@ -126,7 +174,7 @@ class _AdvisorHomeView extends StatelessWidget {
                         Text(
                           'Register a customer & create a job',
                           style: TextStyle(
-                            color: Colors.black.withOpacity(0.65),
+                            color: Colors.black.withValues(alpha: 0.65),
                             fontSize: 13,
                           ),
                         ),
@@ -142,14 +190,14 @@ class _AdvisorHomeView extends StatelessWidget {
                     Expanded(
                       child: MiniStatPill(
                         label: 'Waiting',
-                        value: controller.waitingCount.toString(),
+                        value: _waitingCount.toString(),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: MiniStatPill(
                         label: 'In Progress',
-                        value: controller.inProgressCount.toString(),
+                        value: _inProgressCount.toString(),
                         isHighlighted: true,
                       ),
                     ),
@@ -157,7 +205,7 @@ class _AdvisorHomeView extends StatelessWidget {
                     Expanded(
                       child: MiniStatPill(
                         label: 'QC Pending',
-                        value: controller.qcPendingCount.toString(),
+                        value: _qcPendingCount.toString(),
                         valueColor: AppColors.amberAccent,
                       ),
                     ),
@@ -175,16 +223,14 @@ class _AdvisorHomeView extends StatelessWidget {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _tabs.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final (value, label) = _tabs[index];
-                      final isSelected = value == controller.selectedFilter;
+                      final isSelected = value == _selectedFilter;
                       return ChoiceChip(
                         label: Text(label),
                         selected: isSelected,
-                        onSelected: (_) => context
-                            .read<AdvisorHomeController>()
-                            .setFilter(value),
+                        onSelected: (_) => _setFilter(value),
                         backgroundColor: AppColors.cardBackground,
                         selectedColor: AppColors.limeAccent,
                         labelStyle: TextStyle(
@@ -206,7 +252,7 @@ class _AdvisorHomeView extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // --- Job list ---
-                if (controller.isLoading)
+                if (_isLoading)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
                     child: Center(
@@ -214,13 +260,13 @@ class _AdvisorHomeView extends StatelessWidget {
                           color: AppColors.limeAccent),
                     ),
                   )
-                else if (controller.errorMessage != null)
+                else if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
-                else if (controller.jobs.isEmpty)
+                else if (_jobs.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Center(
@@ -229,7 +275,7 @@ class _AdvisorHomeView extends StatelessWidget {
                     ),
                   )
                 else
-                  ...controller.jobs.map((job) {
+                  ..._jobs.map((job) {
                     return AdvisorJobCard(
                       jobNumber: job['job_number'] ?? '',
                       vehicleInfo: job['vehicle_number'] ?? '',

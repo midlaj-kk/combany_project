@@ -1,51 +1,81 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/stock_history_controller.dart';
 import '../widgets/movement_history_item.dart';
 
 /// Admin "Stock History" screen for a single spare part.
 ///
 /// Usage once routing is set up:
 ///   StockHistoryScreen(partId: part['id'])
-class StockHistoryScreen extends StatelessWidget {
+class StockHistoryScreen extends StatefulWidget {
   const StockHistoryScreen({super.key, required this.partId});
 
   final int partId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => StockHistoryController(partId: partId)..load(),
-      child: const _StockHistoryView(),
-    );
-  }
+  State<StockHistoryScreen> createState() => _StockHistoryScreenState();
 }
 
-class _StockHistoryView extends StatelessWidget {
-  const _StockHistoryView();
+class _StockHistoryScreenState extends State<StockHistoryScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  Map<String, dynamic>? _partDetail;
+  List<dynamic> _movements = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final detail =
+          await DemoRepository.instance.getSparePartDetail(widget.partId);
+      final history =
+          await DemoRepository.instance.getStockHistory(widget.partId);
+      if (!mounted) return;
+      setState(() {
+        _partDetail = detail;
+        _movements = history;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load stock history. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<StockHistoryController>();
-    final part = controller.partDetail;
+    final part = _partDetail;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : controller.errorMessage != null
+            : _errorMessage != null
                 ? Center(
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
                 : RefreshIndicator(
-                    onRefresh: () =>
-                        context.read<StockHistoryController>().load(),
+                    onRefresh: _load,
                     color: AppColors.limeAccent,
                     backgroundColor: AppColors.surface,
                     child: SingleChildScrollView(
@@ -94,7 +124,8 @@ class _StockHistoryView extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.center,
                                   crossAxisAlignment:
                                       CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
@@ -151,14 +182,15 @@ class _StockHistoryView extends StatelessWidget {
                               style: AppTextStyles.heading3),
                           const SizedBox(height: 8),
 
-                          if (controller.movements.isEmpty)
+                          if (_movements.isEmpty)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 24),
                               child: Text('No stock movements yet',
                                   style: AppTextStyles.bodySecondary),
                             )
                           else
-                            ...controller.movements.map((m) {
+                            ..._movements.map((m) {
                               final isIn = m['movement_type'] == 'in';
                               final qty =
                                   (m['quantity'] as num).toStringAsFixed(2);

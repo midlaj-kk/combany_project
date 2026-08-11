@@ -1,31 +1,114 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../controller/inventory_controller.dart';
 import '../widgets/spare_part_card.dart';
 
 /// Admin "Inventory / Spare Parts" screen.
-class InventoryListScreen extends StatelessWidget {
+class InventoryListScreen extends StatefulWidget {
   const InventoryListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => InventoryController()..loadParts(),
-      child: const _InventoryView(),
-    );
-  }
+  State<InventoryListScreen> createState() => _InventoryListScreenState();
 }
 
-class _InventoryView extends StatelessWidget {
-  const _InventoryView();
+class _InventoryListScreenState extends State<InventoryListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  bool _showLowStockOnly = false;
+
+  List<dynamic> _parts = [];
+  int _totalParts = 0;
+  int _lowStockCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadParts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadParts() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Always fetch the full list to compute the header stats,
+      // then apply the tab filter for what's actually displayed.
+      final allParts = await DemoRepository.instance
+          .getSpareParts(search: _searchController.text.trim());
+      final lowCount = allParts
+          .where((p) => (p['stock_quantity'] as num) <=
+              (p['minimum_stock'] as num))
+          .length;
+
+      if (!mounted) return;
+      setState(() {
+        _totalParts = allParts.length;
+        _lowStockCount = lowCount;
+        _parts = _showLowStockOnly
+            ? allParts
+                .where((p) => (p['stock_quantity'] as num) <=
+                    (p['minimum_stock'] as num))
+                .toList()
+            : allParts;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load inventory. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _setTab(bool lowStockOnly) {
+    setState(() => _showLowStockOnly = lowStockOnly);
+    _loadParts();
+  }
+
+  void _onSearchSubmitted(String _) => _loadParts();
+
+  Future<void> _addStock(int partId) async {
+    try {
+      await DemoRepository.instance.addStock(partId, 1);
+      await _loadParts();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not update stock. Try again.';
+      });
+    }
+  }
+
+  Future<void> _reduceStock(int partId) async {
+    try {
+      await DemoRepository.instance
+          .reduceStock(partId, 1, reason: 'Manual adjustment');
+      await _loadParts();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not update stock. Try again.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<InventoryController>();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -57,7 +140,7 @@ class _InventoryView extends StatelessWidget {
                   Expanded(
                     child: _StatBox(
                       label: 'TOTAL PARTS',
-                      value: controller.totalParts.toString(),
+                      value: _totalParts.toString(),
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -65,7 +148,7 @@ class _InventoryView extends StatelessWidget {
                   Expanded(
                     child: _StatBox(
                       label: 'LOW STOCK',
-                      value: controller.lowStockCount.toString(),
+                      value: _lowStockCount.toString(),
                       color: AppColors.amberAccent,
                     ),
                   ),
@@ -81,10 +164,9 @@ class _InventoryView extends StatelessWidget {
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: controller.searchController,
+                      controller: _searchController,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      onSubmitted:
-                          context.read<InventoryController>().onSearchSubmitted,
+                      onSubmitted: _onSearchSubmitted,
                       decoration: const InputDecoration(
                         hintText: 'Search inventory...',
                         prefixIcon:
@@ -114,16 +196,14 @@ class _InventoryView extends StatelessWidget {
                 children: [
                   _TabChip(
                     label: 'ALL PARTS',
-                    isSelected: !controller.showLowStockOnly,
-                    onTap: () =>
-                        context.read<InventoryController>().setTab(false),
+                    isSelected: !_showLowStockOnly,
+                    onTap: () => _setTab(false),
                   ),
                   const SizedBox(width: 8),
                   _TabChip(
                     label: 'LOW STOCK',
-                    isSelected: controller.showLowStockOnly,
-                    onTap: () =>
-                        context.read<InventoryController>().setTab(true),
+                    isSelected: _showLowStockOnly,
+                    onTap: () => _setTab(true),
                   ),
                 ],
               ),
@@ -133,25 +213,25 @@ class _InventoryView extends StatelessWidget {
             // --- Parts list ---
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => context.read<InventoryController>().loadParts(),
+                onRefresh: _loadParts,
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
-                child: controller.isLoading
+                child: _isLoading
                     ? const Center(
                         child: CircularProgressIndicator(
                             color: AppColors.limeAccent),
                       )
-                    : controller.errorMessage != null
+                    : _errorMessage != null
                         ? Center(
-                            child: Text(controller.errorMessage!,
+                            child: Text(_errorMessage!,
                                 style: AppTextStyles.bodySecondary),
                           )
                         : ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                            itemCount: controller.parts.length,
+                            itemCount: _parts.length,
                             itemBuilder: (context, index) {
-                              final part = controller.parts[index];
+                              final part = _parts[index];
                               final stock = part['stock_quantity'];
                               final minStock = part['minimum_stock'];
                               final isLow =
@@ -165,12 +245,9 @@ class _InventoryView extends StatelessWidget {
                                 sellingPrice: (part['selling_price'] as num)
                                     .toStringAsFixed(2),
                                 isLowStock: isLow,
-                                onAddStock: () => context
-                                    .read<InventoryController>()
-                                    .addStock(part['id']),
-                                onReduceStock: () => context
-                                    .read<InventoryController>()
-                                    .reduceStock(part['id']),
+                                onAddStock: () => _addStock(part['id']),
+                                onReduceStock: () =>
+                                    _reduceStock(part['id']),
                                 onTap: () => AppRouter.toStockHistory(
                                   context,
                                   partId: part['id'],

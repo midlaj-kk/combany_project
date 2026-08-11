@@ -1,52 +1,223 @@
+import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/status_badge.dart';
-import '../controller/job_detail_advisor_controller.dart';
 import '../widgets/status_progress_tracker.dart';
 
 /// Advisor "Job Detail" screen.
 ///
 /// Usage once routing is set up:
 ///   JobDetailAdvisorScreen(jobId: job['id'])
-class JobDetailAdvisorScreen extends StatelessWidget {
+class JobDetailAdvisorScreen extends StatefulWidget {
   const JobDetailAdvisorScreen({super.key, required this.jobId});
 
   final int jobId;
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => JobDetailAdvisorController(jobId: jobId)..load(),
-      child: const _JobDetailView(),
-    );
-  }
+  State<JobDetailAdvisorScreen> createState() => _JobDetailAdvisorScreenState();
 }
 
-class _JobDetailView extends StatelessWidget {
-  const _JobDetailView();
+class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic>? _job;
+
+  List<dynamic> _mechanics = [];
+
+  String _selectedTab = 'complaint'; // complaint | work_done | parts_used
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final job =
+          await DemoRepository.instance.getJobDetail(widget.jobId);
+      final mechanics = await DemoRepository.instance.getMechanics();
+      if (!mounted) return;
+      setState(() {
+        _job = job;
+        _mechanics = mechanics;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not load job details. Pull down to retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _setTab(String tab) {
+    setState(() => _selectedTab = tab);
+  }
+
+  Future<void> _changeMechanic(int mechanicId) async {
+    try {
+      await DemoRepository.instance.changeMechanic(widget.jobId, mechanicId);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not change mechanic. Try again.';
+      });
+    }
+  }
+
+  Future<void> _updateStatus(String newStatus) async {
+    try {
+      await DemoRepository.instance.updateJobStatus(widget.jobId, newStatus);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Could not update status. Try again.';
+      });
+    }
+  }
+
+  void _showMechanicPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('SELECT MECHANIC',
+                  style: AppTextStyles.caption.copyWith(letterSpacing: 1)),
+            ),
+            if (_mechanics.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('No mechanics available',
+                    style: AppTextStyles.bodySecondary),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _mechanics.length,
+                  itemBuilder: (_, index) {
+                    final mechanic = _mechanics[index];
+                    return ListTile(
+                      title: Text(
+                        mechanic['name'] ?? '',
+                        style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        mechanic['specialization'] ?? '',
+                        style:
+                            const TextStyle(color: AppColors.textSecondary),
+                      ),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        _changeMechanic(mechanic['id']);
+                      },
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStatusPicker() {
+    const statuses = [
+      ('waiting', 'Waiting'),
+      ('in_progress', 'In Progress'),
+      ('qc_pending', 'QC Pending'),
+      ('ready_for_bill', 'Ready for Bill'),
+      ('ready_for_delivery', 'Ready for Delivery'),
+      ('delivered', 'Delivered'),
+    ];
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('UPDATE STATUS',
+                  style: AppTextStyles.caption.copyWith(letterSpacing: 1)),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: statuses.length,
+                itemBuilder: (_, index) {
+                  final (value, label) = statuses[index];
+                  return ListTile(
+                    title: Text(
+                      label,
+                      style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _updateStatus(value);
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<JobDetailAdvisorController>();
-    final job = controller.job;
+    final job = _job;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: controller.isLoading
+        child: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: AppColors.limeAccent),
               )
-            : controller.errorMessage != null && job == null
+            : _errorMessage != null && job == null
                 ? Center(
-                    child: Text(controller.errorMessage!,
+                    child: Text(_errorMessage!,
                         style: AppTextStyles.bodySecondary),
                   )
                 : RefreshIndicator(
-                    onRefresh: () => context.read<JobDetailAdvisorController>().load(),
+                    onRefresh: _load,
                     color: AppColors.limeAccent,
                     backgroundColor: AppColors.surface,
                     child: SingleChildScrollView(
@@ -101,7 +272,8 @@ class _JobDetailView extends StatelessWidget {
                                           job?['vehicle_model'] ??
                                               job?['service_type'] ??
                                               '',
-                                          style: AppTextStyles.bodySecondary),
+                                          style:
+                                              AppTextStyles.bodySecondary),
                                     ],
                                   ),
                                 ),
@@ -202,8 +374,7 @@ class _JobDetailView extends StatelessWidget {
                                   ),
                                 ),
                                 TextButton(
-                                  onPressed: () =>
-                                      _showMechanicPicker(context, controller),
+                                  onPressed: _showMechanicPicker,
                                   child: const Text('Change Mechanic',
                                       style: TextStyle(
                                           color: AppColors.limeAccent)),
@@ -218,50 +389,41 @@ class _JobDetailView extends StatelessWidget {
                             children: [
                               _TabButton(
                                 label: 'Complaint',
-                                isSelected:
-                                    controller.selectedTab == 'complaint',
-                                onTap: () => context
-                                    .read<JobDetailAdvisorController>()
-                                    .setTab('complaint'),
+                                isSelected: _selectedTab == 'complaint',
+                                onTap: () => _setTab('complaint'),
                               ),
                               const SizedBox(width: 20),
                               _TabButton(
                                 label: 'Work Done',
-                                isSelected:
-                                    controller.selectedTab == 'work_done',
-                                onTap: () => context
-                                    .read<JobDetailAdvisorController>()
-                                    .setTab('work_done'),
+                                isSelected: _selectedTab == 'work_done',
+                                onTap: () => _setTab('work_done'),
                               ),
                               const SizedBox(width: 20),
                               _TabButton(
                                 label: 'Parts Used',
-                                isSelected:
-                                    controller.selectedTab == 'parts_used',
-                                onTap: () => context
-                                    .read<JobDetailAdvisorController>()
-                                    .setTab('parts_used'),
+                                isSelected: _selectedTab == 'parts_used',
+                                onTap: () => _setTab('parts_used'),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
 
                           // --- Tab content ---
-                          if (controller.selectedTab == 'complaint')
+                          if (_selectedTab == 'complaint')
                             _ComplaintTab(job: job)
-                          else if (controller.selectedTab == 'work_done')
-                            _PlaceholderTab(
+                          else if (_selectedTab == 'work_done')
+                            const _PlaceholderTab(
                                 message:
                                     'Service work items will appear here.')
                           else
-                            _PlaceholderTab(
+                            const _PlaceholderTab(
                                 message: 'Parts used will appear here.'),
 
                           const SizedBox(height: 24),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () => _showStatusPicker(context),
+                              onPressed: _showStatusPicker,
                               icon: const Icon(Icons.refresh,
                                   color: Colors.black, size: 18),
                               label: const Text('Update Status'),
@@ -272,120 +434,8 @@ class _JobDetailView extends StatelessWidget {
                     ),
                   ),
       ),
-      bottomNavigationBar: const RoleBottomNav(role: 'advisor', activeIndex: 1),
-    );
-  }
-
-  void _showMechanicPicker(
-    BuildContext context,
-    JobDetailAdvisorController controller,
-  ) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text('SELECT MECHANIC',
-                  style: AppTextStyles.caption.copyWith(letterSpacing: 1)),
-            ),
-            if (controller.mechanics.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text('No mechanics available',
-                    style: AppTextStyles.bodySecondary),
-              )
-            else
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: controller.mechanics.length,
-                  itemBuilder: (_, index) {
-                    final mechanic = controller.mechanics[index];
-                    return ListTile(
-                      title: Text(
-                        mechanic['name'] ?? '',
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Text(
-                        mechanic['specialization'] ?? '',
-                        style: const TextStyle(color: AppColors.textSecondary),
-                      ),
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        controller.changeMechanic(mechanic['id']);
-                      },
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showStatusPicker(BuildContext context) {
-    const statuses = [
-      ('waiting', 'Waiting'),
-      ('in_progress', 'In Progress'),
-      ('qc_pending', 'QC Pending'),
-      ('ready_for_bill', 'Ready for Bill'),
-      ('ready_for_delivery', 'Ready for Delivery'),
-      ('delivered', 'Delivered'),
-    ];
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text('UPDATE STATUS',
-                  style: AppTextStyles.caption.copyWith(letterSpacing: 1)),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: statuses.length,
-                itemBuilder: (_, index) {
-                  final (value, label) = statuses[index];
-                  return ListTile(
-                    title: Text(
-                      label,
-                      style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600),
-                    ),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      context.read<JobDetailAdvisorController>().updateStatus(value);
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+      bottomNavigationBar:
+          const RoleBottomNav(role: 'advisor', activeIndex: 1),
     );
   }
 }
