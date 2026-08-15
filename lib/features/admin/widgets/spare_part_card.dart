@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One spare part row in the Inventory list: name, part number,
-/// stock quantity (highlighted amber if at/below minimum), price,
-/// and quick +/- stock adjustment buttons.
+
 class SparePartCard extends StatelessWidget {
   const SparePartCard({
     super.key,

@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One row of the QC checklist: a label plus a 3-way selector
-/// (Passed / Failed / N-A). Works for both the standard
-/// passed/failed/na options and oil-leakage's no_issue/issue_found/na
-/// by passing custom [options] and [displayLabels].
+
 class ChecklistRow extends StatelessWidget {
   const ChecklistRow({
     super.key,

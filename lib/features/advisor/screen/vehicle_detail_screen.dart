@@ -6,10 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/service_history_tile.dart';
 
-/// Advisor "Vehicle Detail + Service History" screen.
-///
-/// Usage once routing is set up:
-///   VehicleDetailScreen(vehicleId: vehicle['id'])
+
 class VehicleDetailScreen extends StatefulWidget {
   const VehicleDetailScreen({super.key, required this.vehicleId});
 

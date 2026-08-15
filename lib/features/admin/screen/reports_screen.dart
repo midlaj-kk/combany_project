@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/report_card.dart';
 
-/// Admin "Reports" dashboard screen.
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 

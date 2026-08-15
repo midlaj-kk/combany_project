@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One tappable report card: icon badge, title, big value, and a
-/// small subtitle. Used for Revenue, Completed Services, Mechanic
-/// Productivity, Spare Parts Usage, Pending Payments, Low Stock.
+
 class ReportCard extends StatelessWidget {
   const ReportCard({
     super.key,

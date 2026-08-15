@@ -3,16 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 
-/// Reusable pill-style bottom navigation used by every role home screen
-/// and the role sub-screens. Replaces the old per-screen duplicated nav
-/// bars, which rendered dead tabs (search, settings, calendar, parts)
-/// with no destination behind them.
-///
-/// Only tabs with a real screen are shown:
-///   admin   -> Home, Staff, Reports
-///   advisor -> Home, Customers
-///   mechanic-> My Jobs, Profile
-///   cashier -> Home, Payments, Delivery
+
 class RoleBottomNav extends StatelessWidget {
   const RoleBottomNav({
     super.key,
@@ -20,10 +11,8 @@ class RoleBottomNav extends StatelessWidget {
     this.activeIndex = 0,
   });
 
-  /// 'admin' | 'advisor' | 'mechanic' | 'cashier'
   final String role;
 
-  /// Index of the tab that represents the current screen.
   final int activeIndex;
 
   @override

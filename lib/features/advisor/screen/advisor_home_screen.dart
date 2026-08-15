@@ -7,8 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../widgets/advisor_job_card.dart';
 import '../widgets/mini_stat_pill.dart';
 
-/// Service Advisor home screen — matches the Stitch "Service Advisor
-/// Home" design. Reads static demo data directly from [DemoRepository].
+
 class AdvisorHomeScreen extends StatefulWidget {
   const AdvisorHomeScreen({super.key});
 
@@ -26,7 +25,7 @@ class _AdvisorHomeScreenState extends State<AdvisorHomeScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
-  String _selectedFilter = 'all'; // all | waiting | in_progress | qc_pending
+  String _selectedFilter = 'all';
 
   int _waitingCount = 0;
   int _inProgressCount = 0;
@@ -46,8 +45,7 @@ class _AdvisorHomeScreenState extends State<AdvisorHomeScreen> {
     });
 
     try {
-      // Fetch all jobs once to compute the stat counts, then apply
-      // the selected tab filter for the displayed list.
+
       final allJobs = await DemoRepository.instance.getJobs();
       final waiting =
           allJobs.where((j) => j['status'] == 'waiting').length;

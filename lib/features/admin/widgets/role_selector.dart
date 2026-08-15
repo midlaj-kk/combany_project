@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Segmented row of role pills for selecting a staff member's
-/// system role in the Add/Edit Staff form.
+
 class RoleSelector extends StatelessWidget {
   const RoleSelector({
     super.key,

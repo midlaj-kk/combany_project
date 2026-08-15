@@ -1,13 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Thin wrapper around shared_preferences so the rest of the app
-/// never touches the storage package directly.
-///
-/// NOTE: shared_preferences stores data in plain text on device,
-/// unlike flutter_secure_storage. This is fine for development.
-/// Before shipping to production, consider re-introducing
-/// flutter_secure_storage (or an equivalent) once its native
-/// build issue is resolved on your machine.
+
 class SharedPrefernceStorage {
   SharedPrefernceStorage._internal();
   static final SharedPrefernceStorage instance = SharedPrefernceStorage._internal();

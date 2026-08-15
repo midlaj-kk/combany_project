@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/spare_part_card.dart';
 
-/// Admin "Inventory / Spare Parts" screen.
 class InventoryListScreen extends StatefulWidget {
   const InventoryListScreen({super.key});
 
@@ -43,8 +42,7 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     });
 
     try {
-      // Always fetch the full list to compute the header stats,
-      // then apply the tab filter for what's actually displayed.
+     
       final allParts = await DemoRepository.instance
           .getSpareParts(search: _searchController.text.trim());
       final lowCount = allParts

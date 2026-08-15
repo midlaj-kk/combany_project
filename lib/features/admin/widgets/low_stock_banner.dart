@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Amber warning banner shown on Admin dashboard when spare parts
-/// are running low. Only render this widget if lowStockCount > 0.
+
 class LowStockBanner extends StatelessWidget {
   const LowStockBanner({
     super.key,

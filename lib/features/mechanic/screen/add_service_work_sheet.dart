@@ -4,17 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
 
-/// Bottom sheet form for adding a Service Work item to a job.
-///
-/// Usage:
-///   showModalBottomSheet(
-///     context: context,
-///     isScrollControlled: true,
-///     backgroundColor: Colors.transparent,
-///     builder: (_) => AddServiceWorkSheet(jobId: jobId, jobNumber: jobNumber),
-///   );
-/// On success, pop the sheet with `true` so the caller can refresh
-/// the job's work list.
+
 class AddServiceWorkSheet extends StatefulWidget {
   const AddServiceWorkSheet({
     super.key,

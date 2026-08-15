@@ -4,10 +4,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/movement_history_item.dart';
 
-/// Admin "Stock History" screen for a single spare part.
-///
-/// Usage once routing is set up:
-///   StockHistoryScreen(partId: part['id'])
 class StockHistoryScreen extends StatefulWidget {
   const StockHistoryScreen({super.key, required this.partId});
 

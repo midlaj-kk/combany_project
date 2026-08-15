@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// -/+ stepper control for numeric fields like Year, used in the
-/// Add Vehicle form.
+
 class NumberStepper extends StatelessWidget {
   const NumberStepper({
     super.key,

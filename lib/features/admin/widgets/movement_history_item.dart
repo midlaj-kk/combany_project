@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One entry in the Stock History movement timeline.
-/// movementType is "in" (green, up-arrow) or "out" (red, down-arrow).
+
 class MovementHistoryItem extends StatelessWidget {
   const MovementHistoryItem({
     super.key,
@@ -15,8 +14,8 @@ class MovementHistoryItem extends StatelessWidget {
 
   final String title;
   final String subtitle;
-  final String quantityChange; // e.g. "+50.00" or "-5.00"
-  final String movementType; // "in" | "out"
+  final String quantityChange; 
+  final String movementType; 
 
   @override
   Widget build(BuildContext context) {

@@ -4,9 +4,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/animated_checkmark.dart';
 import '../../../widgets/common/status_badge.dart';
 
-/// Confirmation screen shown right after a payment is recorded.
-/// Shows a different subtitle depending on whether the bill is
-/// now fully paid (→ ready for delivery) or still partial.
+
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({
     super.key,

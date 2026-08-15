@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Small stat pill used in the Advisor Home "Waiting / In Progress /
-/// QC Pending" row. Simpler than the dashboard StatCard — just a
-/// label and a big number.
+
 class MiniStatPill extends StatelessWidget {
   const MiniStatPill({
     super.key,

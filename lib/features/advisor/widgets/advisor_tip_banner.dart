@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-
-/// Small lime-tinted info banner used for contextual tips in
-/// Advisor forms (e.g. "Advisor Tip" on the Add Customer screen).
 class AdvisorTipBanner extends StatelessWidget {
   const AdvisorTipBanner({
     super.key,

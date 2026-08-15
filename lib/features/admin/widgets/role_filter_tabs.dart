@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Horizontal scrollable row of role filter pills, used at the top
-/// of Staff Management to filter the list by role.
+
 class RoleFilterTabs extends StatelessWidget {
   const RoleFilterTabs({
     super.key,
@@ -10,7 +9,7 @@ class RoleFilterTabs extends StatelessWidget {
     required this.onRoleSelected,
   });
 
-  final String selectedRole; // "all" | "admin" | "service_advisor" | ...
+  final String selectedRole; 
   final ValueChanged<String> onRoleSelected;
 
   static const _tabs = [

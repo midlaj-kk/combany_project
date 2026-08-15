@@ -8,8 +8,6 @@ import '../../../widgets/common/app_text_field.dart';
 import '../widgets/avatar_upload_picker.dart';
 import '../widgets/role_selector.dart';
 
-/// Admin "Add/Edit Mechanic" (staff) form — creates a new staff
-/// account of any role (Admin, Advisor, Mechanic, Cashier).
 class AddMechanicScreen extends StatefulWidget {
   const AddMechanicScreen({super.key});
 
@@ -41,7 +39,7 @@ class _AddMechanicScreenState extends State<AddMechanicScreen> {
     setState(() => _obscurePassword = !_obscurePassword);
   }
 
-  /// Generates a readable random temporary password, e.g. "Ac7f2Kq9".
+  
   void _generatePassword() {
     const chars =
         'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -99,7 +97,7 @@ class _AddMechanicScreenState extends State<AddMechanicScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Once creation succeeds, show a confirmation and pop back.
+    
     if (_createdSuccessfully) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;

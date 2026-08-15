@@ -2,16 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
-/// Full-width lime-yellow pill button, used for every primary CTA
-/// in the app (Login, Create Job, Confirm Payment, etc).
-///
-/// Example:
-///   AppButton(
-///     label: 'Login',
-///     icon: Icons.arrow_forward,
-///     isLoading: _isLoading,
-///     onPressed: _handleLogin,
-///   )
+
 class AppButton extends StatelessWidget {
   const AppButton({
     super.key,

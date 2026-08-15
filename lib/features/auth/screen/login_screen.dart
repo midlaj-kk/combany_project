@@ -5,12 +5,7 @@ import 'package:auto_care_app/widgets/common/app_button.dart';
 import 'package:auto_care_app/widgets/common/app_text_field.dart';
 import 'package:flutter/material.dart';
 
-/// Staff login screen. Demo-only: the email decides which dashboard
-/// to land on.
-///   * email containing "advisor"  -> Service Advisor dashboard
-///   * email containing "mechanic" -> Mechanic dashboard
-///   * email containing "cashier"  -> Cashier dashboard
-///   * anything else               -> Admin dashboard
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -27,7 +22,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  /// Result role after a successful login, so the UI can navigate.
   String? _loggedInRole;
 
   void _toggleObscurePassword() {
@@ -232,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// Top hero image with dark gradient fade, matching the Stitch design.
+
 class _HeroHeader extends StatelessWidget {
   const _HeroHeader();
 

@@ -6,10 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/status_badge.dart';
 import '../widgets/status_progress_tracker.dart';
 
-/// Advisor "Job Detail" screen.
-///
-/// Usage once routing is set up:
-///   JobDetailAdvisorScreen(jobId: job['id'])
+
 class JobDetailAdvisorScreen extends StatefulWidget {
   const JobDetailAdvisorScreen({super.key, required this.jobId});
 
@@ -26,7 +23,7 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
 
   List<dynamic> _mechanics = [];
 
-  String _selectedTab = 'complaint'; // complaint | work_done | parts_used
+  String _selectedTab = 'complaint'; 
 
   @override
   void initState() {

@@ -1,15 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
-/// Pill-shaped input field with a leading icon, used across
-/// login, forms, and search bars throughout the app.
-///
-/// Example:
-///   AppTextField(
-///     controller: emailController,
-///     hint: 'you@autocare.com',
-///     icon: Icons.email_outlined,
-///   )
+
 class AppTextField extends StatelessWidget {
   const AppTextField({
     super.key,

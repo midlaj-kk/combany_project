@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Multi-segment progress bar with labels, used at the top of the
-/// Add Customer + Vehicle form to show which step is active.
+
 class StepProgressIndicator extends StatelessWidget {
   const StepProgressIndicator({
     super.key,
@@ -12,7 +11,6 @@ class StepProgressIndicator extends StatelessWidget {
     this.labels = const ['1. CUSTOMER', '2. VEHICLE', '3. SERVICE'],
   });
 
-  /// 1-based index of the active step.
   final int currentStep;
   final int totalSteps;
   final List<String> labels;

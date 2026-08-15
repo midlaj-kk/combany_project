@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Horizontal-scroll card shown in "Ready for Billing" on Cashier
-/// Home. Tapping "Create Bill" should navigate to the Create Bill
-/// screen for this job.
+
 class ReadyForBillingCard extends StatelessWidget {
   const ReadyForBillingCard({
     super.key,

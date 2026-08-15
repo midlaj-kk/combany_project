@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One square button in the Admin dashboard's "Quick Actions" grid.
 class QuickActionButton extends StatelessWidget {
   const QuickActionButton({
     super.key,

@@ -1,17 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
-/// Animated lime checkmark circle used on every success/confirmation
-/// screen across the app (Job Created, Payment Success, Delivery
-/// Success, etc). Plays a scale + fade-in animation once on mount.
 class AnimatedCheckmark extends StatefulWidget {
   const AnimatedCheckmark({super.key, this.size = 96, this.filled = false});
 
   final double size;
-
-  /// If true, renders as a solid lime circle with a black check
-  /// (used on Invoice/Payment/Delivery success screens). If false,
-  /// renders as an outlined lime circle (used on Job Created).
   final bool filled;
 
   @override

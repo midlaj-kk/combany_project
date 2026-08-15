@@ -9,9 +9,6 @@ import '../widgets/brand_dropdown.dart';
 import '../widgets/number_stepper.dart';
 import '../widgets/step_progress_indicator.dart';
 
-/// Advisor "Add Customer + Vehicle" screen — a 2-step form.
-/// Step 1 (Customer) matches the provided Stitch screenshot;
-/// Step 2 (Vehicle) follows immediately after, same visual style.
 class AddCustomerScreen extends StatefulWidget {
   const AddCustomerScreen({super.key});
 
@@ -20,15 +17,13 @@ class AddCustomerScreen extends StatefulWidget {
 }
 
 class _AddCustomerScreenState extends State<AddCustomerScreen> {
-  int currentStep = 1; // 1 = Customer, 2 = Vehicle
+  int currentStep = 1; 
 
-  // --- Step 1: Customer fields ---
   final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
 
-  // --- Step 2: Vehicle fields ---
   final TextEditingController vehicleNumberController = TextEditingController();
   String? selectedBrand;
   final TextEditingController modelController = TextEditingController();

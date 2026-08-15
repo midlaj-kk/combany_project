@@ -5,16 +5,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
 import 'invoice_success_screen.dart';
 
-/// Cashier "Create Bill" screen.
-///
-/// Usage once routing is set up:
-///   CreateBillScreen(
-///     jobId: job['id'],
-///     jobNumber: job['job_number'],
-///     vehicleLabel: job['vehicle_number'],
-///     vehicleModel: job['service_type'],
-///     customerName: job['customer_name'],
-///   )
+
 class CreateBillScreen extends StatefulWidget {
   const CreateBillScreen({
     super.key,

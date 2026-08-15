@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One row in a vehicle's Service History list.
 class ServiceHistoryTile extends StatelessWidget {
   const ServiceHistoryTile({
     super.key,

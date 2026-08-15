@@ -6,7 +6,6 @@ import '../../../widgets/common/role_bottom_nav.dart';
 import '../widgets/pending_payment_card.dart';
 import 'record_payment_screen.dart';
 
-/// Cashier "Pending Payments" screen.
 class PendingPaymentsScreen extends StatefulWidget {
   const PendingPaymentsScreen({super.key});
 
@@ -23,7 +22,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
-  String _selectedFilter = 'all'; // all | pending | partial
+  String _selectedFilter = 'all';
   List<dynamic> _allBills = [];
 
   List<dynamic> get _filteredBills => _selectedFilter == 'all'

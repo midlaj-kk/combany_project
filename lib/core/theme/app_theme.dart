@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// Global ThemeData applied once in main.dart via
-/// MaterialApp(theme: AppTheme.dark).
 class AppTheme {
   AppTheme._();
 
@@ -11,7 +9,7 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.limeAccent,
-      fontFamily: 'Inter', // swap for your chosen app font
+      fontFamily: 'Inter', 
       colorScheme: const ColorScheme.dark(
         primary: AppColors.limeAccent,
         secondary: AppColors.amberAccent,

@@ -6,8 +6,7 @@ import '../../../widgets/common/animated_checkmark.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
 import '../../../widgets/common/status_badge.dart';
 
-/// Full-screen confirmation shown right after a Service Job is
-/// successfully created. Receives the created job directly.
+
 class JobCreationConfirmationScreen extends StatelessWidget {
   const JobCreationConfirmationScreen({super.key, required this.job});
 

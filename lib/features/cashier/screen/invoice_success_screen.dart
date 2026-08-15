@@ -5,19 +5,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/animated_checkmark.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
 
-/// Full-screen confirmation shown right after an invoice is
-/// generated. Pass the created bill's data in directly (no
-/// Provider needed — this screen is stateless/display-only).
-///
-/// Usage:
-///   Navigator.of(context).push(MaterialPageRoute(
-///     builder: (_) => InvoiceSuccessScreen(
-///       invoiceNumber: bill['invoice_number'],
-///       serviceEntity: '${vehicleModel}',
-///       totalAmount: bill['total_amount'],
-///       billId: bill['id'],
-///     ),
-///   ));
+
 class InvoiceSuccessScreen extends StatelessWidget {
   const InvoiceSuccessScreen({
     super.key,

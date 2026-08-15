@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Rounded-square logo mark with a soft lime glow behind it,
-/// matching the Stitch splash screen design.
-///
-/// Swap the Icon() below for your real logo (SVG/PNG) later —
-/// e.g. using flutter_svg: SvgPicture.asset('assets/logo.svg').
 class GlowingLogo extends StatelessWidget {
   const GlowingLogo({super.key, this.size = 96});
 

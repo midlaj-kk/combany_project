@@ -7,10 +7,7 @@ import '../../../widgets/common/status_badge.dart';
 import '../widgets/payment_method_selector.dart';
 import 'payment_success_screen.dart';
 
-/// Cashier "Record Payment" screen.
-///
-/// Usage once routing is set up:
-///   RecordPaymentScreen(billId: bill['id'])
+
 class RecordPaymentScreen extends StatefulWidget {
   const RecordPaymentScreen({super.key, required this.billId});
 

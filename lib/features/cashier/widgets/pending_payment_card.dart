@@ -3,8 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/status_badge.dart';
 
-/// Card for one bill in the Pending Payments list, with a progress
-/// bar showing how much has been paid vs remaining.
+
 class PendingPaymentCard extends StatelessWidget {
   const PendingPaymentCard({
     super.key,
@@ -22,7 +21,7 @@ class PendingPaymentCard extends StatelessWidget {
   final String vehicleNumber;
   final double totalAmount;
   final double paidAmount;
-  final String paymentStatus; // pending | partial
+  final String paymentStatus;
   final VoidCallback? onCollectPayment;
 
   double get remaining => totalAmount - paidAmount;

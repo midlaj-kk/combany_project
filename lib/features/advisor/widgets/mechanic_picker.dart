@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Horizontal scrollable list of mechanic avatar cards for the
-/// "Assign Mechanic" step in Create Service Job. Includes a
-/// trailing "Skip — assign later" chip.
+
 class MechanicPicker extends StatelessWidget {
   const MechanicPicker({
     super.key,
@@ -13,7 +11,6 @@ class MechanicPicker extends StatelessWidget {
     required this.onSelected,
   });
 
-  /// Each item: {"id": int, "name": String, "specialization": String}
   final List<dynamic> mechanics;
   final int? selectedMechanicId;
   final ValueChanged<int?> onSelected;

@@ -1,13 +1,7 @@
 import 'package:auto_care_app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Small rounded status pill, color-coded by meaning.
-/// Used everywhere a job/bill/payment status is shown.
-///
-/// Recognizes backend status strings like:
-/// "active"/"in_progress", "qc_pending", "ready_for_bill",
-/// "ready_for_delivery", "delivered", "paid", "pending",
-/// "rework_required", "cancelled", "waiting"
+
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});
 

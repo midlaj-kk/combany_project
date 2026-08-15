@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Job card for the Mechanic's "My Jobs" list. A colored left
-/// border reflects the job's status at a glance (lime = in
-/// progress, red = rework required, gray = waiting).
+
 class MechanicJobCard extends StatelessWidget {
   const MechanicJobCard({
     super.key,

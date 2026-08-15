@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One row in the Staff Management list: avatar initials, name,
-/// role badge, email/phone, active-status dot, and a chevron.
+
 class StaffCard extends StatelessWidget {
   const StaffCard({
     super.key,

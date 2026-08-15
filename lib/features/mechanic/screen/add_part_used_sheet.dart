@@ -5,17 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
 
-/// Bottom sheet form for adding a Part Used to a job.
-///
-/// Usage:
-///   showModalBottomSheet(
-///     context: context,
-///     isScrollControlled: true,
-///     backgroundColor: Colors.transparent,
-///     builder: (_) => AddPartUsedSheet(jobId: jobId),
-///   );
-/// On success, pop the sheet with `true` so the caller can refresh
-/// the job's parts list.
+
 class AddPartUsedSheet extends StatefulWidget {
   const AddPartUsedSheet({super.key, required this.jobId});
 
@@ -56,7 +46,7 @@ class _AddPartUsedSheetState extends State<AddPartUsedSheet> {
     super.dispose();
   }
 
-  /// Debounced so the service is not queried on every keystroke.
+  
   void _search(String query) {
     _debounce?.cancel();
     _debounce = Timer(

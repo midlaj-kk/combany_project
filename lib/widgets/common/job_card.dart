@@ -3,17 +3,7 @@ import 'package:auto_care_app/core/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 import 'status_badge.dart';
 
-/// Job summary card shown in list views across multiple roles
-/// (Admin recent jobs, Advisor job list, Mechanic "my jobs").
-///
-/// Example:
-///   JobCard(
-///     jobNumber: "SJ-2026-00001",
-///     vehicleInfo: "Porsche 911 · MH-12-A...",
-///     customerName: "Vikram Malhotra",
-///     status: "active",
-///     onTap: () {},
-///   )
+
 class JobCard extends StatelessWidget {
   const JobCard({
     super.key,

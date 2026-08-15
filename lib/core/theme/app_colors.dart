@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Central color palette for AutoCare Pro.
-/// Every screen should reference these constants instead of
-/// hardcoding hex colors, so the theme stays consistent everywhere.
 class AppColors {
   AppColors._();
 
@@ -27,5 +24,5 @@ class AppColors {
   static const Color statusNeutral = Color(0xFF7A7A7A);
 
   // Dividers
-  static const Color divider = Color(0x1AFFFFFF); // 10% white
+  static const Color divider = Color(0x1AFFFFFF); 
 }

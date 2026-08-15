@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Row of 4 selectable payment method icon-buttons.
 class PaymentMethodSelector extends StatelessWidget {
   const PaymentMethodSelector({
     super.key,
@@ -10,7 +9,7 @@ class PaymentMethodSelector extends StatelessWidget {
     required this.onSelected,
   });
 
-  final String selectedMethod; // cash | upi | card | bank_transfer
+  final String selectedMethod; 
   final ValueChanged<String> onSelected;
 
   static const _methods = [

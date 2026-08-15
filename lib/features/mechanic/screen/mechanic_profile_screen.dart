@@ -6,7 +6,6 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Mechanic "Profile" screen.
 class MechanicProfileScreen extends StatefulWidget {
   const MechanicProfileScreen({super.key});
 
@@ -19,8 +18,7 @@ class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
   String? _errorMessage;
   Map<String, dynamic>? _profile;
 
-  // TODO: wire these up to real backend stats once a
-  // "mechanic productivity" endpoint scoped to self is available.
+
   final int _jobsCompletedThisMonth = 15;
   final String _avgCompletionTime = '3h 20m';
 

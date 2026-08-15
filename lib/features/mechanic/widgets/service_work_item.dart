@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One row in the "Service Work" list on Job Detail (Mechanic view).
-/// Tapping the leading icon cycles/toggles work status; the
-/// trailing badge shows the current status.
+
 class ServiceWorkItem extends StatelessWidget {
   const ServiceWorkItem({
     super.key,
@@ -18,7 +16,7 @@ class ServiceWorkItem extends StatelessWidget {
   final String workName;
   final String description;
   final String labourCharge;
-  final String status; // pending | in_progress | completed
+  final String status; 
   final VoidCallback? onStatusTap;
 
   ({IconData icon, Color color, String label}) get _statusStyle {

@@ -4,10 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/checklist_row.dart';
 
-/// Admin "Quality Check" form for a single service job.
-///
-/// Usage once routing is set up:
-///   QualityCheckScreen(serviceJobId: job['id'])
+
 class QualityCheckScreen extends StatefulWidget {
   const QualityCheckScreen({super.key, required this.serviceJobId});
 
@@ -25,7 +22,6 @@ class _QualityCheckScreenState extends State<QualityCheckScreen> {
 
   Map<String, dynamic>? _job;
 
-  // Checklist state — keys match the backend field names.
   final Map<String, String?> _checklist = {
     'brake_check': null,
     'engine_check': null,

@@ -5,7 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/customer_card.dart';
 
-/// Advisor "Customers" list screen.
 class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({super.key});
 
@@ -61,9 +60,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   void _onSearchSubmitted(String _) => _loadCustomers();
 
-  /// Opens the first vehicle of a customer. The raw backend only
-  /// returns vehicle counts, so resolve the id before navigating
-  /// (previously this hardcoded vehicleId: 1, opening the wrong car).
+
   Future<void> _openCustomer(Map<String, dynamic> customer) async {
     try {
       final vehicles = await DemoRepository.instance
@@ -72,7 +69,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       AppRouter.toVehicleDetail(context,
           vehicleId: vehicles.first['id'] as int);
     } catch (_) {
-      // Ignore — tapping again will retry.
     }
   }
 

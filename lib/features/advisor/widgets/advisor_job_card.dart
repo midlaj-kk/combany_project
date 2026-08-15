@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Job card used in the Advisor's "Today's Jobs" list.
-/// Shows the job number, vehicle info, status badge, customer name,
-/// and the assigned mechanic (or an "Unassigned" indicator).
+
 class AdvisorJobCard extends StatelessWidget {
   const AdvisorJobCard({
     super.key,

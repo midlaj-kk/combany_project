@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Card for one vehicle ready for delivery, with a hero photo,
-/// customer contact info, and a Mark as Delivered button.
+
 class DeliveryReadyCard extends StatelessWidget {
   const DeliveryReadyCard({
     super.key,

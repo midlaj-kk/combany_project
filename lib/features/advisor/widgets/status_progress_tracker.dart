@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// Horizontal step tracker showing where a job is in its lifecycle:
-/// Waiting → In Progress → QC Pending → Ready for Delivery.
-/// Completed steps show a checkmark, the current step is lime and
-/// pulsing-styled, future steps are dim gray dots.
+
 class StatusProgressTracker extends StatelessWidget {
   const StatusProgressTracker({super.key, required this.currentStatus});
 
@@ -19,7 +16,6 @@ class StatusProgressTracker extends StatelessWidget {
   ];
 
   int get _currentIndex {
-    // Collapse related backend statuses onto the 4 visual stages.
     switch (currentStatus) {
       case 'waiting':
         return 0;

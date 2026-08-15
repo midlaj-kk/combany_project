@@ -6,9 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../widgets/mechanic_job_card.dart';
 
-/// Mechanic home screen — matches the Stitch "Mechanic Home
-/// Dashboard" design. Reads static demo data directly from
-/// [DemoRepository].
+
 class MechanicHomeScreen extends StatefulWidget {
   const MechanicHomeScreen({super.key});
 
@@ -26,7 +24,7 @@ class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
-  String _selectedFilter = 'all'; // all | waiting | in_progress | rework
+  String _selectedFilter = 'all';
 
   int _assignedCount = 0;
   int _completedTodayCount = 0;
@@ -45,7 +43,7 @@ class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
     });
 
     try {
-      // Backend already scopes /service-jobs/ to this mechanic only.
+     
       final allJobs = await DemoRepository.instance.getMyJobs();
       final assigned = allJobs
           .where((j) => j['status'] != 'delivered' && j['status'] != 'cancelled')

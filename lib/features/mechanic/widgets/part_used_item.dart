@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One row in the "Parts Used" list on Job Detail (Mechanic view).
 class PartUsedItem extends StatelessWidget {
   const PartUsedItem({
     super.key,

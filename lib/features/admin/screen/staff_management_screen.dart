@@ -6,9 +6,6 @@ import '../../../core/theme/app_text_styles.dart';
 import '../widgets/role_filter_tabs.dart';
 import '../widgets/staff_card.dart';
 
-/// Admin "Staff Management" screen — list, search, and filter staff
-/// by role, with a floating button to add new staff.
-/// Reads static demo data directly from [DemoRepository].
 class StaffManagementScreen extends StatefulWidget {
   const StaffManagementScreen({super.key});
 

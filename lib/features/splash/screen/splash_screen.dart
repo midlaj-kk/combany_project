@@ -7,8 +7,7 @@ import 'package:auto_care_app/features/splash/widgets/loading_dots.dart';
 import 'package:flutter/material.dart';
 
 
-/// First screen shown when the app opens.
-/// Shows branding briefly, then routes to the login screen.
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -24,8 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    // Short branding pause only — no artificial 2s stall, and this
-    // demo always starts at the login screen.
+  
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
@@ -38,7 +36,6 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Subtle background dot-grid pattern, matches the Stitch canvas look
           Positioned.fill(
             child: CustomPaint(painter: _DotGridPainter()),
           ),
@@ -71,7 +68,6 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-/// Faint dot-grid background painter (purely decorative).
 class _DotGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {

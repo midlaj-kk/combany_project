@@ -9,10 +9,7 @@ import '../widgets/service_work_item.dart';
 import 'add_part_used_sheet.dart';
 import 'add_service_work_sheet.dart';
 
-/// Mechanic "Job Detail" screen.
-///
-/// Usage once routing is set up:
-///   JobDetailMechanicScreen(jobId: job['id'])
+
 class JobDetailMechanicScreen extends StatefulWidget {
   const JobDetailMechanicScreen({super.key, required this.jobId});
 

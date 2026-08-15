@@ -6,14 +6,7 @@ import '../../../widgets/common/app_button.dart';
 import '../widgets/mechanic_picker.dart';
 import 'job_creation_confirmation_screen.dart';
 
-/// Advisor "Create Service Job" screen.
-///
-/// Usage once routing is set up:
-///   CreateServiceJobScreen(
-///     vehicleId: vehicle['id'],
-///     vehicleLabel: vehicle['vehicle_number'],
-///     customerName: vehicle['customer_name'],
-///   )
+
 class CreateServiceJobScreen extends StatefulWidget {
   const CreateServiceJobScreen({
     super.key,

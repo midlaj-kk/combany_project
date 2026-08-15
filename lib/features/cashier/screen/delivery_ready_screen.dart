@@ -6,7 +6,6 @@ import '../../../widgets/common/role_bottom_nav.dart';
 import '../widgets/delivery_ready_card.dart';
 import 'complete_delivery_screen.dart';
 
-/// Cashier "Delivery Ready List" screen.
 class DeliveryReadyScreen extends StatefulWidget {
   const DeliveryReadyScreen({super.key});
 

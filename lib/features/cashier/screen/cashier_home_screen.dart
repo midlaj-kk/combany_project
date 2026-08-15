@@ -7,9 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../widgets/pending_payment_tile.dart';
 import '../widgets/ready_for_billing_card.dart';
 
-/// Cashier home screen — matches the Stitch "Cashier Home
-/// Dashboard" design. Reads static demo data directly from
-/// [DemoRepository].
+
 class CashierHomeScreen extends StatefulWidget {
   const CashierHomeScreen({super.key});
 

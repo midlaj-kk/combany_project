@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
-/// One row in the Customer List: avatar initials, name, phone,
-/// and a small "N vehicles" badge with a chevron.
+
 class CustomerCard extends StatelessWidget {
   const CustomerCard({
     super.key,

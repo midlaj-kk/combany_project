@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Pill-shaped dropdown used for the Brand field in the Add
-/// Vehicle form. Extend the [brands] list with more manufacturers
-/// as needed.
+
 class BrandDropdown extends StatelessWidget {
   const BrandDropdown({
     super.key,

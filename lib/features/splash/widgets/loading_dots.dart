@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Three-dot loading indicator, one dot lit lime at a time,
-/// matching the Stitch splash screen's dot row.
+
 class LoadingDots extends StatefulWidget {
   const LoadingDots({super.key});
 

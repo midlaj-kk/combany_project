@@ -3,7 +3,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/status_badge.dart';
 
-/// One row in the "Pending Payments" list on Cashier Home.
 class PendingPaymentTile extends StatelessWidget {
   const PendingPaymentTile({
     super.key,
@@ -17,7 +16,7 @@ class PendingPaymentTile extends StatelessWidget {
   final String customerName;
   final String invoiceNumber;
   final String amount;
-  final String paymentStatus; // pending | partial
+  final String paymentStatus; 
   final VoidCallback? onTap;
 
   @override

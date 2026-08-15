@@ -4,16 +4,7 @@ import 'package:auto_care_app/core/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 
 
-/// Small dashboard stat card: icon + big number + label.
-/// Reused on Admin, Advisor, and Cashier home screens.
-///
-/// Example:
-///   StatCard(
-///     icon: Icons.directions_car_filled,
-///     value: "24",
-///     label: "Active Jobs In-Progress",
-///     accentColor: AppColors.limeAccent,
-///   )
+
 class StatCard extends StatelessWidget {
   const StatCard({
     super.key,

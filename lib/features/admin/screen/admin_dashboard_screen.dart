@@ -9,8 +9,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../widgets/low_stock_banner.dart';
 import '../widgets/quick_action_button.dart';
 
-/// Admin home screen — matches the Stitch "Admin Dashboard Home" design.
-/// Reads static demo data directly from [DemoRepository].
+
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -63,9 +62,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  /// Fetches jobs awaiting quality check, used by the Quality Check
-  /// quick action. Returns an empty list on failure so the caller can
-  /// show a friendly message instead of crashing.
   Future<List<dynamic>> _loadQcPendingJobs() async {
     try {
       return await DemoRepository.instance.getJobs(status: 'qc_pending');
@@ -74,7 +70,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  /// Quick-action tap: list QC-pending jobs and let the admin pick one.
   Future<void> _openQualityCheckPicker(BuildContext context) async {
     final jobs = await _loadQcPendingJobs();
     if (!context.mounted) return;

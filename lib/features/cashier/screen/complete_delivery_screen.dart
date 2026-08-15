@@ -6,15 +6,7 @@ import '../../../widgets/common/animated_checkmark.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/role_bottom_nav.dart';
 
-/// Cashier "Complete Delivery" screen.
-///
-/// Usage once routing is set up:
-///   CompleteDeliveryScreen(
-///     jobId: job['id'],
-///     jobNumber: job['job_number'],
-///     vehicleLabel: job['vehicle_number'],
-///     customerName: job['customer_name'],
-///   )
+
 class CompleteDeliveryScreen extends StatefulWidget {
   const CompleteDeliveryScreen({
     super.key,

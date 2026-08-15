@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// Reusable text styles. Keeps font sizes/weights consistent
-/// across every screen in every role.
+
 class AppTextStyles {
   AppTextStyles._();
 
