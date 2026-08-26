@@ -1,5 +1,9 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
+import 'package:auto_care_app/features/advisor/data/models/customer_model.dart';
+import 'package:auto_care_app/features/advisor/data/models/vehicle_model.dart';
+import 'package:auto_care_app/features/advisor/presentation/bloc/customer_bloc.dart';
+import 'package:auto_care_app/features/advisor/presentation/bloc/vehicle_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/app_button.dart';
@@ -30,8 +34,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   int year = DateTime.now().year;
   final TextEditingController kilometersController = TextEditingController();
 
-  bool isLoading = false;
-  String? errorMessage;
   bool completedSuccessfully = false;
 
   int? _createdCustomerId;
@@ -44,90 +46,54 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     setState(() => year = newYear);
   }
 
-  Future<void> _submitCustomerStep() async {
+  void _submitCustomerStep() {
     if (nameController.text.trim().isEmpty ||
         phoneController.text.trim().isEmpty) {
-      setState(() {
-        errorMessage = 'Please enter at least name and phone number';
-      });
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    try {
-      final customer = await DemoRepository.instance.createCustomer(
-        name: nameController.text.trim(),
-        phone: phoneController.text.trim(),
-        email: emailController.text.trim(),
-        address: addressController.text.trim(),
-      );
-      if (!mounted) return;
-      setState(() {
-        _createdCustomerId = customer['id'] as int;
-        currentStep = 2;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        errorMessage = 'Something went wrong. Please try again.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
+    context.read<CustomerBloc>().add(
+      CustomerCreateRequested(
+        request: CustomerCreateRequest(
+          name: nameController.text.trim(),
+          phone: phoneController.text.trim(),
+          email: emailController.text.trim().isEmpty
+              ? null
+              : emailController.text.trim(),
+          address: addressController.text.trim().isEmpty
+              ? null
+              : addressController.text.trim(),
+        ),
+      ),
+    );
   }
 
   void _skipVehicleStep() {
     setState(() => completedSuccessfully = true);
   }
 
-  Future<void> _submitVehicleStep() async {
+  void _submitVehicleStep() {
     if (_createdCustomerId == null) {
-      setState(() {
-        errorMessage = 'Customer was not saved correctly. Please start over.';
-      });
       return;
     }
     if (vehicleNumberController.text.trim().isEmpty ||
         selectedBrand == null ||
         modelController.text.trim().isEmpty) {
-      setState(() {
-        errorMessage = 'Please fill in vehicle number, brand, and model';
-      });
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    try {
-      await DemoRepository.instance.createVehicle(
-        customerId: _createdCustomerId!,
-        vehicleNumber: vehicleNumberController.text.trim().toUpperCase(),
-        brand: selectedBrand!,
-        model: modelController.text.trim(),
-        year: year,
-        kilometers: int.tryParse(kilometersController.text.trim()),
-      );
-      if (!mounted) return;
-      setState(() => completedSuccessfully = true);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        errorMessage = 'Something went wrong. Please try again.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
+    context.read<VehicleBloc>().add(
+      VehicleCreateRequested(
+        request: VehicleCreateRequest(
+          customer: _createdCustomerId!,
+          vehicleNumber: vehicleNumberController.text.trim().toUpperCase(),
+          brand: selectedBrand!,
+          model: modelController.text.trim(),
+          year: year,
+          kilometers: int.tryParse(kilometersController.text.trim()) ?? 0,
+        ),
+      ),
+    );
   }
 
   void _goBackToStep1() {
@@ -148,73 +114,128 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (completedSuccessfully) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Customer saved successfully')),
-        );
-        Navigator.of(context).maybePop();
-      });
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // --- Header ---
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      if (currentStep == 2) {
-                        _goBackToStep1();
-                      } else {
-                        Navigator.of(context).maybePop();
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Advisor - Add Customer + Vehicle',
-                      style: AppTextStyles.heading3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // --- Step progress ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: StepProgressIndicator(currentStep: currentStep),
-            ),
-            const SizedBox(height: 20),
-
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: currentStep == 1
-                    ? _CustomerStep(state: this)
-                    : _VehicleStep(state: this),
-              ),
-            ),
-          ],
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<CustomerBloc, CustomerState>(
+          listener: (context, state) {
+            if (state is CustomerCreated) {
+              setState(() {
+                _createdCustomerId = state.customer.id;
+                currentStep = 2;
+              });
+            }
+          },
         ),
+        BlocListener<VehicleBloc, VehicleState>(
+          listener: (context, state) {
+            if (state is VehicleCreated) {
+              setState(() => completedSuccessfully = true);
+            }
+          },
+        ),
+      ],
+      child: BlocConsumer<CustomerBloc, CustomerState>(
+        listenWhen: (prev, curr) => curr is CustomerError,
+        listener: (context, state) {
+          if (state is CustomerError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
+          }
+        },
+        builder: (context, customerState) {
+          return BlocConsumer<VehicleBloc, VehicleState>(
+            listenWhen: (prev, curr) => curr is VehicleError,
+            listener: (context, state) {
+              if (state is VehicleError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message)),
+                );
+              }
+            },
+            builder: (context, vehicleState) {
+              final isLoading = customerState is CustomerLoading ||
+                  vehicleState is VehicleLoading;
+
+              if (completedSuccessfully) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Customer saved successfully')),
+                  );
+                  Navigator.of(context).maybePop();
+                });
+              }
+
+              return Scaffold(
+                backgroundColor: AppColors.background,
+                body: SafeArea(
+                  child: Column(
+                    children: [
+                      // --- Header ---
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                if (currentStep == 2) {
+                                  _goBackToStep1();
+                                } else {
+                                  Navigator.of(context).maybePop();
+                                }
+                              },
+                              icon: const Icon(Icons.arrow_back,
+                                  color: AppColors.textPrimary),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Advisor - Add Customer + Vehicle',
+                                style: AppTextStyles.heading3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // --- Step progress ---
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: StepProgressIndicator(currentStep: currentStep),
+                      ),
+                      const SizedBox(height: 20),
+
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          child: currentStep == 1
+                              ? _CustomerStep(
+                                  state: this,
+                                  isLoading: isLoading,
+                                )
+                              : _VehicleStep(
+                                  state: this,
+                                  isLoading: isLoading,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
 class _CustomerStep extends StatelessWidget {
-  const _CustomerStep({required this.state});
+  const _CustomerStep({required this.state, required this.isLoading});
   final _AddCustomerScreenState state;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -271,19 +292,11 @@ class _CustomerStep extends StatelessWidget {
               'progress milestones.',
         ),
 
-        if (state.errorMessage != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            state.errorMessage!,
-            style: const TextStyle(color: AppColors.statusError, fontSize: 13),
-          ),
-        ],
-
         const SizedBox(height: 28),
         AppButton(
           label: 'Next: Add Vehicle',
           icon: Icons.arrow_forward,
-          isLoading: state.isLoading,
+          isLoading: isLoading,
           onPressed: () => state._submitCustomerStep(),
         ),
       ],
@@ -292,8 +305,9 @@ class _CustomerStep extends StatelessWidget {
 }
 
 class _VehicleStep extends StatelessWidget {
-  const _VehicleStep({required this.state});
+  const _VehicleStep({required this.state, required this.isLoading});
   final _AddCustomerScreenState state;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -428,26 +442,18 @@ class _VehicleStep extends StatelessWidget {
           ),
         ),
 
-        if (state.errorMessage != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            state.errorMessage!,
-            style: const TextStyle(color: AppColors.statusError, fontSize: 13),
-          ),
-        ],
-
         const SizedBox(height: 24),
         AppButton(
           label: 'Save & Continue',
           icon: Icons.arrow_forward,
-          isLoading: state.isLoading,
+          isLoading: isLoading,
           onPressed: () => state._submitVehicleStep(),
         ),
         const SizedBox(height: 12),
         Center(
           child: TextButton(
             onPressed:
-                state.isLoading ? null : () => state._skipVehicleStep(),
+                isLoading ? null : () => state._skipVehicleStep(),
             child: Text('Skip for now', style: AppTextStyles.bodySecondary),
           ),
         ),

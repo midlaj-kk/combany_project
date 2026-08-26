@@ -1,8 +1,12 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/di/injection.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/models/spare_part_model.dart';
+import '../domain/repositories/admin_repository.dart';
+import '../presentation/bloc/admin_bloc.dart';
 import '../widgets/spare_part_card.dart';
 
 class InventoryListScreen extends StatefulWidget {
@@ -14,19 +18,21 @@ class InventoryListScreen extends StatefulWidget {
 
 class _InventoryListScreenState extends State<InventoryListScreen> {
   final TextEditingController _searchController = TextEditingController();
-
-  bool _isLoading = true;
-  String? _errorMessage;
   bool _showLowStockOnly = false;
 
-  List<dynamic> _parts = [];
+  List<SparePartModel> _allParts = [];
   int _totalParts = 0;
   int _lowStockCount = 0;
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadParts();
+  List<SparePartModel> get _filteredParts {
+    if (!_showLowStockOnly) return _allParts;
+    return _allParts.where((p) {
+      final stock = double.tryParse(p.stockQuantity ?? '0') ?? 0;
+      final minStock = double.tryParse(p.minimumStock ?? '0') ?? 0;
+      return stock <= minStock;
+    }).toList();
   }
 
   @override
@@ -35,228 +41,252 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     super.dispose();
   }
 
-  Future<void> _loadParts() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-     
-      final allParts = await DemoRepository.instance
-          .getSpareParts(search: _searchController.text.trim());
-      final lowCount = allParts
-          .where((p) => (p['stock_quantity'] as num) <=
-              (p['minimum_stock'] as num))
-          .length;
-
-      if (!mounted) return;
-      setState(() {
-        _totalParts = allParts.length;
-        _lowStockCount = lowCount;
-        _parts = _showLowStockOnly
-            ? allParts
-                .where((p) => (p['stock_quantity'] as num) <=
-                    (p['minimum_stock'] as num))
-                .toList()
-            : allParts;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not load inventory. Pull down to retry.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   void _setTab(bool lowStockOnly) {
     setState(() => _showLowStockOnly = lowStockOnly);
-    _loadParts();
-  }
-
-  void _onSearchSubmitted(String _) => _loadParts();
-
-  Future<void> _addStock(int partId) async {
-    try {
-      await DemoRepository.instance.addStock(partId, 1);
-      await _loadParts();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not update stock. Try again.';
-      });
-    }
-  }
-
-  Future<void> _reduceStock(int partId) async {
-    try {
-      await DemoRepository.instance
-          .reduceStock(partId, 1, reason: 'Manual adjustment');
-      await _loadParts();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not update stock. Try again.';
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // --- Header ---
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
-                  ),
-                  Expanded(
-                    child: Text('Inventory', style: AppTextStyles.heading3),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // --- Stat row ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _StatBox(
-                      label: 'TOTAL PARTS',
-                      value: _totalParts.toString(),
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatBox(
-                      label: 'LOW STOCK',
-                      value: _lowStockCount.toString(),
-                      color: AppColors.amberAccent,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // --- Search + filter ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      onSubmitted: _onSearchSubmitted,
-                      decoration: const InputDecoration(
-                        hintText: 'Search inventory...',
-                        prefixIcon:
-                            Icon(Icons.search, color: AppColors.textMuted),
+    return BlocProvider(
+      create: (_) => AdminBloc(repository: getIt<AdminRepository>())
+        ..add(const AdminSparePartsLoadRequested()),
+      child: Builder(
+        builder: (blocContext) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: SafeArea(
+              child: BlocListener<AdminBloc, AdminState>(
+                listener: (context, state) {
+                  if (state is AdminSparePartsLoaded) {
+                    final allParts = state.spareParts.results;
+                    final lowCount = allParts.where((p) {
+                      final stock =
+                          double.tryParse(p.stockQuantity ?? '0') ?? 0;
+                      final minStock =
+                          double.tryParse(p.minimumStock ?? '0') ?? 0;
+                      return stock <= minStock;
+                    }).length;
+                    setState(() {
+                      _allParts = allParts;
+                      _totalParts = state.spareParts.count;
+                      _lowStockCount = lowCount;
+                      _isLoading = false;
+                      _errorMessage = null;
+                    });
+                  } else if (state is AdminStockActionSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(state.message)),
+                    );
+                    blocContext.read<AdminBloc>().add(
+                          const AdminSparePartsLoadRequested(),
+                        );
+                  } else if (state is AdminError) {
+                    setState(() {
+                      _errorMessage = state.message;
+                      _isLoading = false;
+                    });
+                  } else if (state is AdminLoading && _allParts.isEmpty) {
+                    setState(() {
+                      _isLoading = true;
+                      _errorMessage = null;
+                    });
+                  }
+                },
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: () =>
+                                Navigator.of(context).maybePop(),
+                            icon: const Icon(Icons.arrow_back,
+                                color: AppColors.textPrimary),
+                          ),
+                          Expanded(
+                            child: Text('Inventory',
+                                style: AppTextStyles.heading3),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.inputFill,
-                      borderRadius: BorderRadius.circular(30),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _StatBox(
+                              label: 'TOTAL PARTS',
+                              value: _totalParts.toString(),
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _StatBox(
+                              label: 'LOW STOCK',
+                              value: _lowStockCount.toString(),
+                              color: AppColors.amberAccent,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Icon(Icons.tune, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // --- Tabs ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _TabChip(
-                    label: 'ALL PARTS',
-                    isSelected: !_showLowStockOnly,
-                    onTap: () => _setTab(false),
-                  ),
-                  const SizedBox(width: 8),
-                  _TabChip(
-                    label: 'LOW STOCK',
-                    isSelected: _showLowStockOnly,
-                    onTap: () => _setTab(true),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // --- Parts list ---
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadParts,
-                color: AppColors.limeAccent,
-                backgroundColor: AppColors.surface,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.limeAccent),
-                      )
-                    : _errorMessage != null
-                        ? Center(
-                            child: Text(_errorMessage!,
-                                style: AppTextStyles.bodySecondary),
-                          )
-                        : ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                            itemCount: _parts.length,
-                            itemBuilder: (context, index) {
-                              final part = _parts[index];
-                              final stock = part['stock_quantity'];
-                              final minStock = part['minimum_stock'];
-                              final isLow =
-                                  (stock as num) <= (minStock as num);
-
-                              return SparePartCard(
-                                name: part['name'] ?? '',
-                                partNumber: part['part_number'] ?? '',
-                                stockQuantity: stock.toStringAsFixed(2),
-                                unit: part['unit'] ?? '',
-                                sellingPrice: (part['selling_price'] as num)
-                                    .toStringAsFixed(2),
-                                isLowStock: isLow,
-                                onAddStock: () => _addStock(part['id']),
-                                onReduceStock: () =>
-                                    _reduceStock(part['id']),
-                                onTap: () => AppRouter.toStockHistory(
-                                  context,
-                                  partId: part['id'],
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              style: const TextStyle(
+                                  color: AppColors.textPrimary),
+                              onSubmitted: (_) {
+                                blocContext.read<AdminBloc>().add(
+                                      AdminSparePartsLoadRequested(
+                                        search: _searchController
+                                                .text
+                                                .trim()
+                                                .isNotEmpty
+                                            ? _searchController
+                                                .text
+                                                .trim()
+                                            : null,
+                                      ),
+                                    );
+                              },
+                              decoration: const InputDecoration(
+                                hintText: 'Search inventory...',
+                                prefixIcon: Icon(Icons.search,
+                                    color: AppColors.textMuted),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.inputFill,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: const Icon(Icons.tune,
+                                color: AppColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          _TabChip(
+                            label: 'ALL PARTS',
+                            isSelected: !_showLowStockOnly,
+                            onTap: () => _setTab(false),
+                          ),
+                          const SizedBox(width: 8),
+                          _TabChip(
+                            label: 'LOW STOCK',
+                            isSelected: _showLowStockOnly,
+                            onTap: () => _setTab(true),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: () async {
+                          blocContext.read<AdminBloc>().add(
+                                AdminSparePartsLoadRequested(
+                                  search: _searchController
+                                          .text
+                                          .trim()
+                                          .isNotEmpty
+                                      ? _searchController.text.trim()
+                                      : null,
                                 ),
                               );
-                            },
-                          ),
+                        },
+                        color: AppColors.limeAccent,
+                        backgroundColor: AppColors.surface,
+                        child: _isLoading
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                    color: AppColors.limeAccent),
+                              )
+                            : _errorMessage != null
+                                ? Center(
+                                    child: Text(_errorMessage!,
+                                        style: AppTextStyles
+                                            .bodySecondary),
+                                  )
+                                : ListView.builder(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                        20, 0, 20, 100),
+                                    itemCount: _filteredParts.length,
+                                    itemBuilder: (context, index) {
+                                      final part =
+                                          _filteredParts[index];
+                                      final stock =
+                                          double.tryParse(part.stockQuantity ?? '0') ?? 0;
+                                      final minStock =
+                                          double.tryParse(part.minimumStock ?? '0') ?? 0;
+                                      final isLow =
+                                          stock <= minStock;
+
+                                      return SparePartCard(
+                                        name: part.name,
+                                        partNumber: part.partNumber,
+                                        stockQuantity:
+                                            stock.toStringAsFixed(2),
+                                        unit: part.unit ?? '',
+                                        sellingPrice:
+                                            (double.tryParse(part.sellingPrice ?? '0') ?? 0)
+                                                .toStringAsFixed(2),
+                                        isLowStock: isLow,
+                                        onAddStock: () => blocContext
+                                                .read<AdminBloc>()
+                                                .add(
+                                                  AdminAddStockRequested(
+                                                    partId: part.id,
+                                                    quantity: '1',
+                                                  ),
+                                                ),
+                                        onReduceStock: () => blocContext
+                                                .read<AdminBloc>()
+                                                .add(
+                                                  AdminReduceStockRequested(
+                                                    partId: part.id,
+                                                    quantity: '1',
+                                                  ),
+                                                ),
+                                        onTap: () =>
+                                            AppRouter.toStockHistory(
+                                          context,
+                                          partId: part.id,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -285,9 +315,12 @@ class _StatBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: AppTextStyles.caption.copyWith(letterSpacing: 0.6)),
+              style:
+                  AppTextStyles.caption.copyWith(letterSpacing: 0.6)),
           const SizedBox(height: 4),
-          Text(value, style: AppTextStyles.heading2.copyWith(color: color)),
+          Text(value,
+              style:
+                  AppTextStyles.heading2.copyWith(color: color)),
         ],
       ),
     );
@@ -310,15 +343,20 @@ class _TabChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.limeAccent : AppColors.cardBackground,
+          color: isSelected
+              ? AppColors.limeAccent
+              : AppColors.cardBackground,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.black : AppColors.textSecondary,
+            color: isSelected
+                ? Colors.black
+                : AppColors.textSecondary,
             fontWeight: FontWeight.bold,
             fontSize: 12,
             letterSpacing: 0.4,

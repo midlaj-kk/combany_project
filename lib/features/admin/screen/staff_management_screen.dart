@@ -1,8 +1,12 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/di/injection.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/models/user_model.dart';
+import '../domain/repositories/admin_repository.dart';
+import '../presentation/bloc/admin_bloc.dart';
 import '../widgets/role_filter_tabs.dart';
 import '../widgets/staff_card.dart';
 
@@ -15,16 +19,11 @@ class StaffManagementScreen extends StatefulWidget {
 
 class _StaffManagementScreenState extends State<StaffManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
-
-  bool _isLoading = true;
-  String? _errorMessage;
   String _selectedRole = 'all';
-  List<dynamic> _staffList = [];
 
   @override
   void initState() {
     super.initState();
-    _loadStaff();
   }
 
   @override
@@ -33,161 +32,188 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     super.dispose();
   }
 
-  Future<void> _loadStaff() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final staff = await DemoRepository.instance.getStaff(
-        search: _searchController.text.trim(),
-        role: _selectedRole,
-      );
-      if (!mounted) return;
-      setState(() => _staffList = staff);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not load staff list. Pull down to retry.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  String _roleFilterValue(UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return 'admin';
+      case UserRole.serviceAdvisor:
+        return 'service_advisor';
+      case UserRole.mechanic:
+        return 'mechanic';
+      case UserRole.cashier:
+        return 'cashier';
     }
   }
 
-  void _onRoleSelected(String role) {
-    setState(() => _selectedRole = role);
-    _loadStaff();
-  }
-
-  void _onSearchSubmitted(String _) {
-    _loadStaff();
+  List<UserModel> _filterByRole(List<UserModel> users) {
+    if (_selectedRole == 'all') return users;
+    return users
+        .where((u) => _roleFilterValue(u.role) == _selectedRole)
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // --- Header ---
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
+    return BlocProvider(
+      create: (_) => AdminBloc(repository: getIt<AdminRepository>())
+        ..add(AdminUsersLoadRequested(
+            search: _searchController.text.trim().isNotEmpty
+                ? _searchController.text.trim()
+                : null)),
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: SafeArea(
+              child: Column(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Admin - Staff Management',
-                      style: AppTextStyles.heading3,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(Icons.arrow_back,
+                              color: AppColors.textPrimary),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Admin - Staff Management',
+                            style: AppTextStyles.heading3,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => AppRouter.toAddMechanic(context),
+                          icon: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: AppColors.limeAccent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add,
+                                color: Colors.black, size: 20),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => AppRouter.toAddMechanic(context),
-                    icon: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AppColors.limeAccent,
-                        shape: BoxShape.circle,
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: RoleFilterTabs(
+                      selectedRole: _selectedRole,
+                      onRoleSelected: (role) {
+                        setState(() => _selectedRole = role);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: TextField(
+                      controller: _searchController,
+                      style:
+                          const TextStyle(color: AppColors.textPrimary),
+                      onSubmitted: (_) {
+                        context.read<AdminBloc>().add(
+                              AdminUsersLoadRequested(
+                                search:
+                                    _searchController.text.trim().isNotEmpty
+                                        ? _searchController.text.trim()
+                                        : null,
+                              ),
+                            );
+                      },
+                      decoration: const InputDecoration(
+                        hintText: 'Search by name or email',
+                        prefixIcon:
+                            Icon(Icons.search, color: AppColors.textMuted),
                       ),
-                      child: const Icon(Icons.add,
-                          color: Colors.black, size: 20),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // --- Role filter tabs ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: RoleFilterTabs(
-                selectedRole: _selectedRole,
-                onRoleSelected: _onRoleSelected,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // --- Search bar ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                onSubmitted: _onSearchSubmitted,
-                decoration: const InputDecoration(
-                  hintText: 'Search by name or email',
-                  prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // --- Staff list ---
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadStaff,
-                color: AppColors.limeAccent,
-                backgroundColor: AppColors.surface,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.limeAccent),
-                      )
-                    : _errorMessage != null
-                        ? _ErrorState(message: _errorMessage!)
-                        : _staffList.isEmpty
-                            ? ListView(
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        context.read<AdminBloc>().add(
+                              AdminUsersLoadRequested(
+                                search:
+                                    _searchController.text.trim().isNotEmpty
+                                        ? _searchController.text.trim()
+                                        : null,
+                              ),
+                            );
+                      },
+                      color: AppColors.limeAccent,
+                      backgroundColor: AppColors.surface,
+                      child: BlocBuilder<AdminBloc, AdminState>(
+                        builder: (context, state) {
+                          if (state is AdminLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                  color: AppColors.limeAccent),
+                            );
+                          }
+                          if (state is AdminError) {
+                            return _ErrorState(message: state.message);
+                          }
+                          if (state is AdminUsersLoaded) {
+                            final filtered =
+                                _filterByRole(state.users.results);
+                            if (filtered.isEmpty) {
+                              return ListView(
                                 physics:
                                     const AlwaysScrollableScrollPhysics(),
                                 children: [
                                   const SizedBox(height: 80),
                                   Center(
                                     child: Text('No staff found',
-                                        style: AppTextStyles.bodySecondary),
+                                        style:
+                                            AppTextStyles.bodySecondary),
                                   ),
                                 ],
-                              )
-                            : ListView.builder(
-                                physics:
-                                    const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.fromLTRB(
-                                    20, 0, 20, 100),
-                                itemCount: _staffList.length,
-                                itemBuilder: (context, index) {
-                                  final staff = _staffList[index];
-                                  return StaffCard(
-                                    name: staff['name'] ?? '',
-                                    role: staff['role'] ?? '',
-                                    email: staff['email'] ?? '',
-                                    phone: staff['phone'] ?? '',
-                                    isActive: staff['status'] == 'active',
-                                  );
-                                },
-                              ),
+                              );
+                            }
+                            return ListView.builder(
+                              physics:
+                                  const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(
+                                  20, 0, 20, 100),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final staff = filtered[index];
+                                return StaffCard(
+                                  name: staff.name,
+                                  role: staff.role.name,
+                                  email: staff.email,
+                                  phone: staff.phone,
+                                  isActive: staff.isActive ?? true,
+                                );
+                              },
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => AppRouter.toAddMechanic(context),
-        backgroundColor: AppColors.limeAccent,
-        label: const Text(
-          'Add New Staff',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        icon: const Icon(Icons.add, color: Colors.black),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerFloat,
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () => AppRouter.toAddMechanic(context),
+              backgroundColor: AppColors.limeAccent,
+              label: const Text(
+                'Add New Staff',
+                style: TextStyle(
+                    color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+              icon: const Icon(Icons.add, color: Colors.black),
+            ),
+          );
+        },
       ),
     );
   }

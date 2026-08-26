@@ -1,10 +1,16 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
+import 'package:auto_care_app/core/constants/app_constants.dart';
+import 'package:auto_care_app/core/di/injection.dart';
 import 'package:auto_care_app/core/storage/shared_prefernce.dart';
+import 'package:auto_care_app/features/advisor/data/models/service_job_model.dart';
+import 'package:auto_care_app/features/advisor/presentation/bloc/job_bloc.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../authentication/presentation/bloc/auth_bloc.dart';
 
 class MechanicProfileScreen extends StatefulWidget {
   const MechanicProfileScreen({super.key});
@@ -16,37 +22,43 @@ class MechanicProfileScreen extends StatefulWidget {
 class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  Map<String, dynamic>? _profile;
-
-
-  final int _jobsCompletedThisMonth = 15;
-  final String _avgCompletionTime = '3h 20m';
 
   @override
   void initState() {
     super.initState();
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      setState(() => _isLoading = false);
+    }
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  void _load() {
+    context.read<AuthBloc>().add(const AuthGetCurrentUser());
+  }
 
-    try {
-      final profile = await DemoRepository.instance.getMyProfile();
-      if (!mounted) return;
-      setState(() => _profile = profile);
-    } catch (_) {
-      if (!mounted) return;
+  void _onStateChanged(BuildContext context, AuthState state) {
+    if (state is AuthAuthenticated) {
       setState(() {
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } else if (state is AuthError) {
+      setState(() {
+        _isLoading = false;
         _errorMessage = 'Could not load profile. Pull down to retry.';
       });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    } else if (state is AuthUnauthenticated) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage =
+            'Session expired. Please log out and sign in again.';
+      });
+    } else if (state is AuthLoading) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
     }
   }
 
@@ -54,161 +66,236 @@ class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
     await SharedPrefernceStorage().clearAll();
   }
 
+  static const _completedStatuses = [
+    ServiceJobStatus.qcPending,
+    ServiceJobStatus.readyForBill,
+    ServiceJobStatus.readyForDelivery,
+    ServiceJobStatus.delivered,
+  ];
+
+  int _countCompletedThisMonth(List<ServiceJobModel> jobs, int? mechanicId) {
+    if (mechanicId == null) return 0;
+    final now = DateTime.now();
+    var count = 0;
+    for (final job in jobs) {
+      if (job.assignedMechanic != mechanicId) continue;
+      if (!_completedStatuses.contains(job.status)) continue;
+      final finished = DateTime.tryParse(job.updatedAt ?? '');
+      if (finished == null) continue;
+      if (finished.year == now.year && finished.month == now.month) count++;
+    }
+    return count;
+  }
+
+  String? _averageCompletionTime(List<ServiceJobModel> jobs, int? mechanicId) {
+    if (mechanicId == null) return null;
+    Duration total = Duration.zero;
+    var delivered = 0;
+    for (final job in jobs) {
+      if (job.assignedMechanic != mechanicId) continue;
+      if (job.status != ServiceJobStatus.delivered) continue;
+      final created = DateTime.tryParse(job.createdAt ?? '');
+      final finished = DateTime.tryParse(job.updatedAt ?? '');
+      if (created == null || finished == null) continue;
+      if (!finished.isAfter(created)) continue;
+      total += finished.difference(created);
+      delivered++;
+    }
+    if (delivered == 0) return null;
+    final hours = total.inHours;
+    final minutes = total.inMinutes % 60;
+    return '${hours}h ${minutes}m';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final profile = _profile;
+    return BlocProvider(
+      create: (_) => getIt<JobBloc>()..add(const JobsLoadRequested()),
+      child: BlocConsumer<AuthBloc, AuthState>(
+        listener: _onStateChanged,
+        listenWhen: (_, current) =>
+            current is AuthAuthenticated ||
+            current is AuthError ||
+            current is AuthUnauthenticated,
+        builder: (context, state) {
+          final user =
+              state is AuthAuthenticated ? state.user : null;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.limeAccent),
-              )
-            : RefreshIndicator(
-                onRefresh: _load,
-                color: AppColors.limeAccent,
-                backgroundColor: AppColors.surface,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // --- Header ---
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'MECHANIC - PROFILE',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.limeAccent,
-                              letterSpacing: 1,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: AppColors.cardBackground,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.settings_outlined,
-                                color: AppColors.textPrimary, size: 18),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      if (_errorMessage != null) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(_errorMessage!,
-                              style: AppTextStyles.bodySecondary),
-                        ),
-                      ],
-
-                      // --- Avatar + name ---
-                      Center(
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: SafeArea(
+              child: _isLoading
+                  ? const Center(
+                      child:
+                          CircularProgressIndicator(color: AppColors.limeAccent),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () async => _load(),
+                      color: AppColors.limeAccent,
+                      backgroundColor: AppColors.surface,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Stack(
+                            // --- Header ---
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  width: 96,
-                                  height: 96,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: AppColors.limeAccent,
-                                        width: 2),
-                                  ),
-                                  child: const CircleAvatar(
-                                    backgroundColor: AppColors.inputFill,
-                                    child: Icon(Icons.person,
-                                        size: 40, color: AppColors.textMuted),
+                                Text(
+                                  'MECHANIC - PROFILE',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.limeAccent,
+                                    letterSpacing: 1,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                Positioned(
-                                  bottom: 4,
-                                  right: 4,
-                                  child: Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.statusSuccess,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: AppColors.background,
-                                          width: 2),
-                                    ),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.cardBackground,
+                                    shape: BoxShape.circle,
                                   ),
+                                  child: const Icon(Icons.settings_outlined,
+                                      color: AppColors.textPrimary, size: 18),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
-                            Text(
-                              profile?['name'] ?? '',
-                              style: AppTextStyles.heading2,
+                            const SizedBox(height: 24),
+
+                            if (_errorMessage != null) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Text(_errorMessage!,
+                                    style: AppTextStyles.bodySecondary),
+                              ),
+                            ],
+
+                            // --- Avatar + name ---
+                            Center(
+                              child: Column(
+                                children: [
+                                  Stack(
+                                    children: [
+                                      Container(
+                                        width: 96,
+                                        height: 96,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: AppColors.limeAccent,
+                                              width: 2),
+                                        ),
+                                        child: const CircleAvatar(
+                                          backgroundColor: AppColors.inputFill,
+                                          child: Icon(Icons.person,
+                                              size: 40,
+                                              color: AppColors.textMuted),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 4,
+                                        right: 4,
+                                        child: Container(
+                                          width: 16,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.statusSuccess,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                                color: AppColors.background,
+                                                width: 2),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    user?.name ?? '',
+                                    style: AppTextStyles.heading2,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.limeAccent
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      (user?.specialization ?? 'MECHANIC')
+                                          .toString()
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                        color: AppColors.limeAccent,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: AppColors.limeAccent.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                (profile?['specialization'] ?? 'MECHANIC')
-                                    .toString()
-                                    .toUpperCase(),
-                                style: const TextStyle(
-                                  color: AppColors.limeAccent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                            const SizedBox(height: 28),
+
+                            // --- Live stat cards ---
+                            BlocBuilder<JobBloc, JobState>(
+                              builder: (context, jobState) {
+                                final jobs = jobState is JobsLoaded
+                                    ? jobState.jobs.results
+                                    : const <ServiceJobModel>[];
+                                final mechanicId = getIt<SharedPreferences>()
+                                    .getInt(AppConstants.userIdKey);
+                                final completedThisMonth =
+                                    _countCompletedThisMonth(jobs, mechanicId);
+                                final avgTime =
+                                    _averageCompletionTime(jobs, mechanicId);
+
+                                return Column(
+                                  children: [
+                                    _StatRow(
+                                      icon: Icons.emoji_events_outlined,
+                                      label: 'JOBS COMPLETED THIS MONTH',
+                                      value: completedThisMonth.toString(),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _StatRow(
+                                      icon: Icons.access_time,
+                                      label: 'AVG. COMPLETION TIME',
+                                      value: avgTime ?? 'No data',
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 24),
+
+                            // --- Settings list ---
+                            _SettingsTile(
+                              icon: Icons.logout,
+                              label: 'Logout',
+                              isDestructive: true,
+                              onTap: () async {
+                                await _logout();
+                                if (context.mounted) {
+                                  AppRouter.toLogin(context, replace: true);
+                                }
+                              },
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 28),
-
-                      // --- Stat cards ---
-                      _StatRow(
-                        icon: Icons.emoji_events_outlined,
-                        label: 'JOBS COMPLETED THIS MONTH',
-                        value: _jobsCompletedThisMonth.toString(),
-                      ),
-                      const SizedBox(height: 12),
-                      _StatRow(
-                        icon: Icons.access_time,
-                        label: 'AVG. COMPLETION TIME',
-                        value: _avgCompletionTime,
-                      ),
-                      const SizedBox(height: 24),
-
-                      // --- Settings list ---
-                      _SettingsTile(
-                        icon: Icons.logout,
-                        label: 'Logout',
-                        isDestructive: true,
-                        onTap: () async {
-                          await _logout();
-                          if (context.mounted) {
-                            AppRouter.toLogin(context, replace: true);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
+            ),
+            bottomNavigationBar:
+                const RoleBottomNav(role: 'mechanic', activeIndex: 1),
+          );
+        },
       ),
-      bottomNavigationBar:
-          const RoleBottomNav(role: 'mechanic', activeIndex: 1),
     );
   }
 }

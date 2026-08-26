@@ -5,8 +5,8 @@ import 'package:auto_care_app/core/theme/app_text_styles.dart';
 import 'package:auto_care_app/features/splash/widgets/glowing_logo.dart';
 import 'package:auto_care_app/features/splash/widgets/loading_dots.dart';
 import 'package:flutter/material.dart';
-
-
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:auto_care_app/features/authentication/presentation/bloc/auth_bloc.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,11 +23,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-  
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
-    AppRouter.toLogin(context, replace: true);
+    final authBloc = context.read<AuthBloc>();
+    final state = authBloc.state;
+
+    if (state is AuthAuthenticated) {
+      AppRouter.afterLogin(context, state.user.role);
+    } else {
+      AppRouter.toLogin(context, replace: true);
+    }
   }
 
   @override

@@ -1,10 +1,11 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../widgets/common/role_bottom_nav.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:auto_care_app/core/theme/app_colors.dart';
+import 'package:auto_care_app/core/theme/app_text_styles.dart';
+import 'package:auto_care_app/core/router/app_router.dart';
+import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
+import 'package:auto_care_app/features/cashier/presentation/bloc/billing_bloc.dart';
 import '../widgets/delivery_ready_card.dart';
-import 'complete_delivery_screen.dart';
 
 class DeliveryReadyScreen extends StatefulWidget {
   const DeliveryReadyScreen({super.key});
@@ -16,46 +17,19 @@ class DeliveryReadyScreen extends StatefulWidget {
 class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  bool _isLoading = true;
-  String? _errorMessage;
-  List<dynamic> _vehicles = [];
-
   @override
   void initState() {
     super.initState();
-    _load();
+    context.read<BillingBloc>().add(const BillingReadyDeliveriesLoadRequested());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final vehicles = await DemoRepository.instance.getDeliveryReady();
-      if (!mounted) return;
-      setState(() => _vehicles = vehicles);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not load delivery list. Pull down to retry.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  List<dynamic> get _filteredVehicles {
+  List<dynamic> _filteredList(List<dynamic> vehicles) {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _vehicles;
-    return _vehicles.where((v) {
-      final vehicleNumber =
-          (v['vehicle_number'] ?? '').toString().toLowerCase();
-      final customerName = (v['customer_name'] ?? '').toString().toLowerCase();
-      return vehicleNumber.contains(query) || customerName.contains(query);
+    if (query.isEmpty) return vehicles;
+    return vehicles.where((v) {
+      final vn = (v.vehicleNumber ?? '').toLowerCase();
+      final cn = (v.customerName ?? '').toLowerCase();
+      return vn.contains(query) || cn.contains(query);
     }).toList();
   }
 
@@ -72,31 +46,23 @@ class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- Header ---
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                   ),
                   Expanded(
-                    child: Text(
-                      'Cashier - Delivery Ready List',
-                      style: AppTextStyles.heading3
-                          .copyWith(color: AppColors.limeAccent),
-                    ),
+                    child: Text('Cashier - Delivery Ready List',
+                        style: AppTextStyles.heading3.copyWith(color: AppColors.limeAccent)),
                   ),
-                  const Icon(Icons.notifications_outlined,
-                      color: AppColors.textPrimary, size: 20),
+                  const Icon(Icons.notifications_outlined, color: AppColors.textPrimary, size: 20),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-
-            // --- Search bar ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
@@ -106,90 +72,80 @@ class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> {
                 decoration: const InputDecoration(
                   hintText: 'Search by vehicle or name...',
                   prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
-                  suffixIcon:
-                      Icon(Icons.tune, color: AppColors.textMuted, size: 18),
+                  suffixIcon: Icon(Icons.tune, color: AppColors.textMuted, size: 18),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-
-            // --- List ---
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _load,
+                onRefresh: () async {
+                  context.read<BillingBloc>().add(const BillingReadyDeliveriesLoadRequested());
+                },
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.limeAccent),
-                      )
-                    : _errorMessage != null
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              const SizedBox(height: 80),
-                              Center(
-                                child: Text(_errorMessage!,
-                                    style: AppTextStyles.bodySecondary),
-                              ),
-                            ],
-                          )
-                        : _filteredVehicles.isEmpty
-                            ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  const SizedBox(height: 80),
-                                  Center(
-                                    child: Text(
-                                        'No vehicles ready for delivery',
-                                        style: AppTextStyles.bodySecondary),
-                                  ),
-                                ],
-                              )
-                            : ListView.builder(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                                itemCount: _filteredVehicles.length,
-                                itemBuilder: (context, index) {
-                                  final job = _filteredVehicles[index];
-                                  return DeliveryReadyCard(
-                                    jobNumber: job['job_number'] ?? '',
-                                    vehicleModel:
-                                        '${job['vehicle_number'] ?? ''} ${job['service_type'] ?? ''}',
-                                    customerName: job['customer_name'] ?? '',
-                                    customerPhone: job['customer_phone'] ?? '',
-                                    footnote: index ==
-                                            _filteredVehicles.length - 1
-                                        ? 'Quality Check Cleared • Final detailing complete'
-                                        : null,
-                                    onMarkDelivered: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              CompleteDeliveryScreen(
-                                            jobId: job['id'],
-                                            jobNumber:
-                                                job['job_number'] ?? '',
-                                            vehicleLabel:
-                                                job['vehicle_number'] ?? '',
-                                            customerName:
-                                                job['customer_name'] ?? '',
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
+                child: BlocBuilder<BillingBloc, BillingState>(
+                  builder: (context, state) {
+                    if (state is BillingLoading) {
+                      return const Center(child: CircularProgressIndicator(color: AppColors.limeAccent));
+                    }
+                    if (state is BillingError) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          const SizedBox(height: 80),
+                          Center(child: Text(state.message, style: AppTextStyles.bodySecondary)),
+                        ],
+                      );
+                    }
+                    List<dynamic> vehicles = [];
+                    if (state is BillingReadyDeliveriesLoaded) {
+                      vehicles = state.deliveries;
+                    }
+                    final filtered = _filteredList(vehicles);
+                    if (filtered.isEmpty) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          const SizedBox(height: 80),
+                          Center(child: Text('No vehicles ready for delivery', style: AppTextStyles.bodySecondary)),
+                        ],
+                      );
+                    }
+                    return ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final job = filtered[index];
+                        return DeliveryReadyCard(
+                          jobNumber: job.jobNumber ?? '',
+                          vehicleModel: '${job.vehicleNumber ?? ''} ${job.serviceType ?? ''}',
+                          customerName: job.customerName ?? '',
+                          customerPhone: job.customerPhone ?? '',
+                          footnote: index == filtered.length - 1
+                              ? 'Quality Check Cleared • Final detailing complete'
+                              : null,
+                          onMarkDelivered: () {
+                            AppRouter.toCompleteDelivery(
+                              context,
+                              jobId: job.id,
+                              jobNumber: job.jobNumber ?? '',
+                              vehicleLabel: job.vehicleNumber ?? '',
+                              customerName: job.customerName ?? '',
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar:
-          const RoleBottomNav(role: 'cashier', activeIndex: 2),
+      bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
     );
   }
 }

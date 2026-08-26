@@ -1,5 +1,7 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
+import 'package:auto_care_app/features/advisor/data/models/customer_model.dart';
+import 'package:auto_care_app/features/advisor/presentation/bloc/customer_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -15,15 +17,15 @@ class CustomerListScreen extends StatefulWidget {
 class _CustomerListScreenState extends State<CustomerListScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  bool _isLoading = true;
-  String? _errorMessage;
-  List<dynamic> _customers = [];
-  int _totalCount = 0;
+  // Cached so transient states (vehicles lookup, refresh) never blank the list.
+  List<CustomerModel> _customers = const [];
+  Map<int, int> _vehicleCounts = const {};
+  bool _hasLoadedOnce = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCustomers();
+    context.read<CustomerBloc>().add(const CustomersLoadRequested());
   }
 
   @override
@@ -32,43 +34,44 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCustomers() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final customers = await DemoRepository.instance
-          .getCustomers(search: _searchController.text.trim());
-      if (!mounted) return;
-      setState(() {
-        _customers = customers;
-        _totalCount = customers.length;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not load customers. Pull down to retry.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+  void _loadCustomers() {
+    context.read<CustomerBloc>().add(
+      CustomersLoadRequested(search: _searchController.text.trim()),
+    );
   }
 
   void _onSearchSubmitted(String _) => _loadCustomers();
 
+  void _openCustomer(CustomerModel customer) {
+    context.read<CustomerBloc>().add(
+      CustomerVehiclesLoadRequested(customerId: customer.id),
+    );
+  }
 
-  Future<void> _openCustomer(Map<String, dynamic> customer) async {
-    try {
-      final vehicles = await DemoRepository.instance
-          .getCustomerVehicles(customer['id'] as int);
-      if (vehicles.isEmpty || !mounted) return;
-      AppRouter.toVehicleDetail(context,
-          vehicleId: vehicles.first['id'] as int);
-    } catch (_) {
+  void _onStateChanged(BuildContext context, CustomerState state) {
+    if (state is CustomersLoaded) {
+      setState(() {
+        _customers = state.customers.results;
+        _vehicleCounts = state.vehicleCounts;
+        _hasLoadedOnce = true;
+      });
+    } else if (state is CustomerVehiclesLoaded) {
+      final vehicles = state.vehicles;
+      if (vehicles.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No vehicles registered for this customer')),
+        );
+        return;
+      }
+      AppRouter.toVehicleDetail(context, vehicleId: vehicles.first.id).then((_) {
+        if (!mounted) return;
+        // Restore authoritative list state after returning from detail.
+        _loadCustomers();
+      });
+    } else if (state is CustomerError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(state.message)),
+      );
     }
   }
 
@@ -77,97 +80,97 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            // --- Header ---
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                children: [
-                  IconButton(onPressed: (){
-                    Navigator.of(context).maybePop();
-                  }, icon: Icon(Icons.arrow_back)),
-                  Expanded(
-                    
-                    child: Text('Customers', style: AppTextStyles.heading2),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: const BoxDecoration(
-                      color: AppColors.limeAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => AppRouter.toAddCustomer(context),
-                      icon: const Icon(Icons.add,
-                          color: Colors.black, size: 20),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+        child: BlocConsumer<CustomerBloc, CustomerState>(
+          listener: _onStateChanged,
+          listenWhen: (previous, current) =>
+              current is CustomersLoaded ||
+              current is CustomerVehiclesLoaded ||
+              current is CustomerError,
+          builder: (context, state) {
+            final isFetching = state is CustomerLoading && !_hasLoadedOnce;
 
-            // --- Search bar ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                onSubmitted: _onSearchSubmitted,
-                decoration: const InputDecoration(
-                  hintText: 'Search by name or phone',
-                  prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
+            return Column(
+              children: [
+                // --- Header ---
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: Row(
+                    children: [
+                      IconButton(onPressed: (){
+                        Navigator.of(context).maybePop();
+                      }, icon: Icon(Icons.arrow_back)),
+                      Expanded(
+
+                        child: Text('Customers', style: AppTextStyles.heading2),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: const BoxDecoration(
+                          color: AppColors.limeAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => AppRouter.toAddCustomer(context),
+                          icon: const Icon(Icons.add,
+                              color: Colors.black, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            // --- Directory count row ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'CLIENT DIRECTORY',
-                    style: AppTextStyles.caption.copyWith(letterSpacing: 0.6),
-                  ),
-                  Text(
-                    '$_totalCount Total',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.limeAccent,
-                      fontWeight: FontWeight.bold,
+                // --- Search bar ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    onSubmitted: _onSearchSubmitted,
+                    decoration: const InputDecoration(
+                      hintText: 'Search by name or phone',
+                      prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
+                ),
+                const SizedBox(height: 16),
 
-            // --- Customer list ---
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadCustomers,
-                color: AppColors.limeAccent,
-                backgroundColor: AppColors.surface,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.limeAccent),
-                      )
-                    : _errorMessage != null
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              const SizedBox(height: 80),
-                              Center(
-                                child: Text(_errorMessage!,
-                                    style: AppTextStyles.bodySecondary),
-                              ),
-                            ],
+                // --- Directory count row ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'CLIENT DIRECTORY',
+                        style: AppTextStyles.caption.copyWith(letterSpacing: 0.6),
+                      ),
+                      Text(
+                        '${_customers.length} Total',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.limeAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // --- Customer list ---
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      _loadCustomers();
+                    },
+                    color: AppColors.limeAccent,
+                    backgroundColor: AppColors.surface,
+                    child: isFetching
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: AppColors.limeAccent),
                           )
                         : _customers.isEmpty
                             ? ListView(
@@ -190,22 +193,28 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                 itemBuilder: (context, index) {
                                   final customer = _customers[index];
                                   return CustomerCard(
-                                    name: customer['name'] ?? '',
-                                    phone: customer['phone'] ?? '',
+                                    name: customer.name,
+                                    phone: customer.phone,
                                     vehicleCount:
-                                        customer['vehicle_count'] ?? 0,
+                                        _vehicleCounts[customer.id] ?? 0,
                                     onTap: () => _openCustomer(customer),
                                   );
                                 },
                               ),
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => AppRouter.toAddCustomer(context),
+        onPressed: () async {
+          await AppRouter.toAddCustomer(context);
+          if (!mounted) return;
+          _loadCustomers();
+        },
         backgroundColor: AppColors.limeAccent,
         label: const Text(
           'Add Customer',

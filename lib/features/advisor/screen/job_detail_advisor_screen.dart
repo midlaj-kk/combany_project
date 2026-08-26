@@ -1,6 +1,10 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
+import 'package:auto_care_app/features/admin/data/models/user_model.dart';
+import 'package:auto_care_app/features/admin/presentation/bloc/admin_bloc.dart';
+import 'package:auto_care_app/features/advisor/data/models/service_job_model.dart';
+import 'package:auto_care_app/features/advisor/presentation/bloc/job_bloc.dart';
 import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/status_badge.dart';
@@ -17,73 +21,37 @@ class JobDetailAdvisorScreen extends StatefulWidget {
 }
 
 class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
-  bool _isLoading = true;
-  String? _errorMessage;
-  Map<String, dynamic>? _job;
-
-  List<dynamic> _mechanics = [];
+  List<Map<String, dynamic>> _mechanics = [];
 
   String _selectedTab = 'complaint'; 
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final job =
-          await DemoRepository.instance.getJobDetail(widget.jobId);
-      final mechanics = await DemoRepository.instance.getMechanics();
-      if (!mounted) return;
-      setState(() {
-        _job = job;
-        _mechanics = mechanics;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not load job details. Pull down to retry.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
+  String _statusString(ServiceJobStatus? status) => switch (status) {
+    ServiceJobStatus.waiting => 'waiting',
+    ServiceJobStatus.inProgress => 'in_progress',
+    ServiceJobStatus.waitingForParts => 'waiting_for_parts',
+    ServiceJobStatus.qcPending => 'qc_pending',
+    ServiceJobStatus.reworkRequired => 'rework_required',
+    ServiceJobStatus.readyForBill => 'ready_for_bill',
+    ServiceJobStatus.readyForDelivery => 'ready_for_delivery',
+    ServiceJobStatus.delivered => 'delivered',
+    ServiceJobStatus.cancelled => 'cancelled',
+    null => '',
+  };
 
   void _setTab(String tab) {
     setState(() => _selectedTab = tab);
   }
 
-  Future<void> _changeMechanic(int mechanicId) async {
-    try {
-      await DemoRepository.instance.changeMechanic(widget.jobId, mechanicId);
-      await _load();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not change mechanic. Try again.';
-      });
-    }
+  void _changeMechanic(int mechanicId) {
+    context.read<JobBloc>().add(
+      JobChangeMechanicRequested(jobId: widget.jobId, mechanicId: mechanicId),
+    );
   }
 
-  Future<void> _updateStatus(String newStatus) async {
-    try {
-      await DemoRepository.instance.updateJobStatus(widget.jobId, newStatus);
-      await _load();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not update status. Try again.';
-      });
-    }
+  void _updateStatus(String newStatus) {
+    context.read<JobBloc>().add(
+      JobUpdateStatusRequested(jobId: widget.jobId, status: newStatus),
+    );
   }
 
   void _showMechanicPicker() {
@@ -199,247 +167,278 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final job = _job;
+    return BlocListener<AdminBloc, AdminState>(
+      listener: (context, state) {
+        if (state is AdminUsersLoaded) {
+          final mechanics = state.users.results
+              .where((u) => u.role == UserRole.mechanic)
+              .map((u) => {
+                    'id': u.id,
+                    'name': u.name,
+                    'specialization': u.specialization ?? '',
+                  })
+              .toList();
+          setState(() => _mechanics = mechanics);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: BlocBuilder<JobBloc, JobState>(
+            builder: (context, jobState) {
+              final isLoading = jobState is JobLoading;
+              final errorMessage =
+                  jobState is JobError ? jobState.message : null;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.limeAccent),
-              )
-            : _errorMessage != null && job == null
-                ? Center(
-                    child: Text(_errorMessage!,
-                        style: AppTextStyles.bodySecondary),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    color: AppColors.limeAccent,
-                    backgroundColor: AppColors.surface,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              ServiceJobModel? job;
+              if (jobState is JobLoaded) {
+                job = jobState.job;
+              } else if (jobState is JobUpdated) {
+                job = jobState.job;
+              }
+
+              if (isLoading && job == null) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.limeAccent),
+                );
+              }
+
+              if (errorMessage != null && job == null) {
+                return Center(
+                  child: Text(errorMessage,
+                      style: AppTextStyles.bodySecondary),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  if (!mounted) return;
+                  context.read<JobBloc>().add(JobLoadRequested(id: widget.jobId));
+                },
+                color: AppColors.limeAccent,
+                backgroundColor: AppColors.surface,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // --- Header ---
+                      Row(
                         children: [
-                          // --- Header ---
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () =>
-                                    Navigator.of(context).maybePop(),
-                                icon: const Icon(Icons.arrow_back,
-                                    color: AppColors.textPrimary),
-                              ),
-                              Expanded(
-                                child: Text('Advisor - Job Detail',
-                                    style: AppTextStyles.heading3),
-                              ),
-                              StatusBadge(status: job?['status'] ?? ''),
-                            ],
+                          IconButton(
+                            onPressed: () =>
+                                Navigator.of(context).maybePop(),
+                            icon: const Icon(Icons.arrow_back,
+                                color: AppColors.textPrimary),
                           ),
-                          const SizedBox(height: 16),
-
-                          // --- Vehicle number card ---
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('VEHICLE NUMBER',
-                                          style: AppTextStyles.caption
-                                              .copyWith(letterSpacing: 0.5)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        job?['vehicle_number'] ?? '',
-                                        style: AppTextStyles.heading3,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                          job?['vehicle_model'] ??
-                                              job?['service_type'] ??
-                                              '',
-                                          style:
-                                              AppTextStyles.bodySecondary),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.inputFill,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(Icons.directions_car,
-                                      color: AppColors.textMuted),
-                                ),
-                              ],
-                            ),
+                          Expanded(
+                            child: Text('Advisor - Job Detail',
+                                style: AppTextStyles.heading3),
                           ),
-                          const SizedBox(height: 12),
+                          StatusBadge(status: _statusString(job?.status)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
 
-                          // --- Customer card ---
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('CUSTOMER',
-                                          style: AppTextStyles.caption
-                                              .copyWith(letterSpacing: 0.5)),
-                                      const SizedBox(height: 4),
-                                      Text(job?['customer_name'] ?? '',
-                                          style: AppTextStyles.heading3),
-                                      const SizedBox(height: 2),
-                                      Text(job?['customer_phone'] ?? '',
-                                          style: AppTextStyles.bodySecondary),
-                                    ],
+                      // --- Vehicle number card ---
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text('VEHICLE NUMBER',
+                                      style: AppTextStyles.caption
+                                          .copyWith(letterSpacing: 0.5)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    job?.vehicleNumber ?? '',
+                                    style: AppTextStyles.heading3,
                                   ),
-                                ),
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.limeAccent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.call,
-                                      color: Colors.black, size: 20),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // --- Status progress tracker ---
-                          StatusProgressTracker(
-                              currentStatus: job?['status'] ?? 'waiting'),
-                          const SizedBox(height: 24),
-
-                          // --- Assigned mechanic ---
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackground,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Row(
-                              children: [
-                                const CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: AppColors.inputFill,
-                                  child: Icon(Icons.person,
-                                      color: AppColors.textMuted),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        job?['mechanic_name'] ?? 'Unassigned',
-                                        style: AppTextStyles.bodyRegular
-                                            .copyWith(
-                                                fontWeight: FontWeight.bold),
-                                      ),
-                                      Text(
-                                          job?['mechanic_specialization'] ??
-                                              '',
-                                          style: AppTextStyles.caption),
-                                    ],
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: _showMechanicPicker,
-                                  child: const Text('Change Mechanic',
-                                      style: TextStyle(
-                                          color: AppColors.limeAccent)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // --- Tabs ---
-                          Row(
-                            children: [
-                              _TabButton(
-                                label: 'Complaint',
-                                isSelected: _selectedTab == 'complaint',
-                                onTap: () => _setTab('complaint'),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                      job?.serviceType ?? '',
+                                      style:
+                                          AppTextStyles.bodySecondary),
+                                ],
                               ),
-                              const SizedBox(width: 20),
-                              _TabButton(
-                                label: 'Work Done',
-                                isSelected: _selectedTab == 'work_done',
-                                onTap: () => _setTab('work_done'),
-                              ),
-                              const SizedBox(width: 20),
-                              _TabButton(
-                                label: 'Parts Used',
-                                isSelected: _selectedTab == 'parts_used',
-                                onTap: () => _setTab('parts_used'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // --- Tab content ---
-                          if (_selectedTab == 'complaint')
-                            _ComplaintTab(job: job)
-                          else if (_selectedTab == 'work_done')
-                            const _PlaceholderTab(
-                                message:
-                                    'Service work items will appear here.')
-                          else
-                            const _PlaceholderTab(
-                                message: 'Parts used will appear here.'),
-
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _showStatusPicker,
-                              icon: const Icon(Icons.refresh,
-                                  color: Colors.black, size: 18),
-                              label: const Text('Update Status'),
                             ),
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppColors.inputFill,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.directions_car,
+                                  color: AppColors.textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // --- Customer card ---
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text('CUSTOMER',
+                                      style: AppTextStyles.caption
+                                          .copyWith(letterSpacing: 0.5)),
+                                  const SizedBox(height: 4),
+                                  Text(job?.customerName ?? '',
+                                      style: AppTextStyles.heading3),
+                                  const SizedBox(height: 2),
+                                  Text('',
+                                      style: AppTextStyles.bodySecondary),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                color: AppColors.limeAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.call,
+                                  color: Colors.black, size: 20),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // --- Status progress tracker ---
+                      StatusProgressTracker(
+                          currentStatus: _statusString(job?.status)),
+                      const SizedBox(height: 24),
+
+                      // --- Assigned mechanic ---
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 20,
+                              backgroundColor: AppColors.inputFill,
+                              child: Icon(Icons.person,
+                                  color: AppColors.textMuted),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    job?.mechanicName ?? 'Unassigned',
+                                    style: AppTextStyles.bodyRegular
+                                        .copyWith(
+                                            fontWeight: FontWeight.bold),
+                                  ),
+                                  Text('',
+                                      style: AppTextStyles.caption),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _showMechanicPicker,
+                              child: const Text('Change Mechanic',
+                                  style: TextStyle(
+                                      color: AppColors.limeAccent)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // --- Tabs ---
+                      Row(
+                        children: [
+                          _TabButton(
+                            label: 'Complaint',
+                            isSelected: _selectedTab == 'complaint',
+                            onTap: () => _setTab('complaint'),
+                          ),
+                          const SizedBox(width: 20),
+                          _TabButton(
+                            label: 'Work Done',
+                            isSelected: _selectedTab == 'work_done',
+                            onTap: () => _setTab('work_done'),
+                          ),
+                          const SizedBox(width: 20),
+                          _TabButton(
+                            label: 'Parts Used',
+                            isSelected: _selectedTab == 'parts_used',
+                            onTap: () => _setTab('parts_used'),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 16),
+
+                      // --- Tab content ---
+                      if (_selectedTab == 'complaint')
+                        _ComplaintTab(job: job)
+                      else if (_selectedTab == 'work_done')
+                        const _PlaceholderTab(
+                            message:
+                                'Service work items will appear here.')
+                      else
+                        const _PlaceholderTab(
+                            message: 'Parts used will appear here.'),
+
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _showStatusPicker,
+                          icon: const Icon(Icons.refresh,
+                              color: Colors.black, size: 18),
+                          label: const Text('Update Status'),
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+              );
+            },
+          ),
+        ),
+        bottomNavigationBar:
+            const RoleBottomNav(role: 'advisor', activeIndex: 1),
       ),
-      bottomNavigationBar:
-          const RoleBottomNav(role: 'advisor', activeIndex: 1),
     );
   }
 }
 
 class _ComplaintTab extends StatelessWidget {
   const _ComplaintTab({required this.job});
-  final Map<String, dynamic>? job;
+  final ServiceJobModel? job;
 
   @override
   Widget build(BuildContext context) {
@@ -459,7 +458,7 @@ class _ComplaintTab extends StatelessWidget {
               Text('PRIMARY CONCERN',
                   style: AppTextStyles.caption.copyWith(letterSpacing: 0.5)),
               const SizedBox(height: 6),
-              Text(job?['complaint'] ?? '',
+              Text(job?.complaint ?? '',
                   style: AppTextStyles.bodyRegular),
             ],
           ),
@@ -470,14 +469,14 @@ class _ComplaintTab extends StatelessWidget {
             Expanded(
               child: _StatBox(
                 label: 'SERVICE TYPE',
-                value: job?['service_type'] ?? '',
+                value: job?.serviceType ?? '',
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatBox(
                 label: 'ODOMETER',
-                value: '${job?['odometer_reading'] ?? 0} km',
+                value: '${job?.odometerReading ?? 0} km',
               ),
             ),
           ],
@@ -498,8 +497,7 @@ class _ComplaintTab extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  job?['remarks'] ??
-                      'No additional notes recorded for this job.',
+                  'No additional notes recorded for this job.',
                   style: AppTextStyles.caption.copyWith(
                     fontStyle: FontStyle.italic,
                   ),

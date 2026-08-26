@@ -1,8 +1,9 @@
-import 'package:auto_care_app/core/demo/demo_repository.dart';
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../widgets/common/role_bottom_nav.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:auto_care_app/core/theme/app_colors.dart';
+import 'package:auto_care_app/core/theme/app_text_styles.dart';
+import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
+import 'package:auto_care_app/features/cashier/presentation/bloc/billing_bloc.dart';
 import '../widgets/pending_payment_card.dart';
 import 'record_payment_screen.dart';
 
@@ -14,53 +15,13 @@ class PendingPaymentsScreen extends StatefulWidget {
 }
 
 class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
-  static const _tabs = [
-    ('all', 'All'),
-    ('pending', 'Pending'),
-    ('partial', 'Partial'),
-  ];
-
-  bool _isLoading = true;
-  String? _errorMessage;
+  static const _tabs = [('all', 'All'), ('pending', 'Pending'), ('partial', 'Partial')];
   String _selectedFilter = 'all';
-  List<dynamic> _allBills = [];
-
-  List<dynamic> get _filteredBills => _selectedFilter == 'all'
-      ? _allBills
-      : _allBills
-          .where((b) => b['payment_status'] == _selectedFilter)
-          .toList();
 
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final bills = await DemoRepository.instance.getPendingPayments();
-      if (!mounted) return;
-      setState(() => _allBills = bills);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Could not load pending payments. Pull down to retry.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _setFilter(String filter) {
-    setState(() => _selectedFilter = filter);
+    context.read<BillingBloc>().add(const BillingBillsLoadRequested());
   }
 
   @override
@@ -70,32 +31,25 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- Header ---
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
               child: Row(
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                   ),
                   Expanded(
-                    child: Text('Cashier - Pending Payments',
-                        style: AppTextStyles.heading3),
+                    child: Text('Cashier - Pending Payments', style: AppTextStyles.heading3),
                   ),
                   const CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.inputFill,
-                    child: Icon(Icons.person,
-                        size: 16, color: AppColors.textMuted),
+                    radius: 16, backgroundColor: AppColors.inputFill,
+                    child: Icon(Icons.person, size: 16, color: AppColors.textMuted),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-
-            // --- Filter tabs ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -105,26 +59,16 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
-                      onTap: () => _setFilter(value),
+                      onTap: () => setState(() => _selectedFilter = value),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.limeAccent
-                              : AppColors.cardBackground,
+                          color: isSelected ? AppColors.limeAccent : AppColors.cardBackground,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.black
-                                : AppColors.textSecondary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
+                        child: Text(label, style: TextStyle(
+                          color: isSelected ? Colors.black : AppColors.textSecondary,
+                          fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ),
                   );
@@ -132,84 +76,72 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // --- List ---
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _load,
+                onRefresh: () async {
+                  context.read<BillingBloc>().add(const BillingBillsLoadRequested());
+                },
                 color: AppColors.limeAccent,
                 backgroundColor: AppColors.surface,
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.limeAccent),
-                      )
-                    : _errorMessage != null
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              const SizedBox(height: 80),
-                              Center(
-                                child: Text(_errorMessage!,
-                                    style: AppTextStyles.bodySecondary),
-                              ),
-                            ],
-                          )
-                        : _filteredBills.isEmpty
-                            ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  const SizedBox(height: 80),
-                                  Center(
-                                    child: Text('No pending payments',
-                                        style: AppTextStyles.bodySecondary),
-                                  ),
-                                ],
-                              )
-                            : ListView.builder(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                                itemCount: _filteredBills.length,
-                                itemBuilder: (context, index) {
-                                  final bill = _filteredBills[index];
-                                  return PendingPaymentCard(
-                                    customerName:
-                                        bill['customer_name'] ?? '',
-                                    invoiceNumber:
-                                        bill['invoice_number'] ?? '',
-                                    vehicleNumber:
-                                        bill['vehicle_number'] ?? '',
-                                    totalAmount:
-                                        (bill['total_amount'] as num?)
-                                                ?.toDouble() ??
-                                            0,
-                                    paidAmount:
-                                        (bill['amount_paid'] as num?)
-                                                ?.toDouble() ??
-                                            0,
-                                    paymentStatus:
-                                        bill['payment_status'] ?? 'pending',
-                                    onCollectPayment: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              RecordPaymentScreen(
-                                            billId: bill['id'],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
+                child: BlocBuilder<BillingBloc, BillingState>(
+                  builder: (context, state) {
+                    if (state is BillingLoading) {
+                      return const Center(child: CircularProgressIndicator(color: AppColors.limeAccent));
+                    }
+                    if (state is BillingError) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          const SizedBox(height: 80),
+                          Center(child: Text(state.message, style: AppTextStyles.bodySecondary)),
+                        ],
+                      );
+                    }
+                    List<dynamic> allBills = [];
+                    if (state is BillingBillsLoaded) {
+                      allBills = state.bills.results;
+                    }
+                    final filtered = _selectedFilter == 'all'
+                        ? allBills
+                        : allBills.where((b) => b.paymentStatus?.name == _selectedFilter).toList();
+                    if (filtered.isEmpty) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          const SizedBox(height: 80),
+                          Center(child: Text('No pending payments', style: AppTextStyles.bodySecondary)),
+                        ],
+                      );
+                    }
+                    return ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final bill = filtered[index];
+                        return PendingPaymentCard(
+                          customerName: bill.customerName ?? '',
+                          invoiceNumber: bill.invoiceNumber ?? '',
+                          vehicleNumber: bill.vehicleNumber ?? '',
+                          totalAmount: double.tryParse(bill.totalAmount ?? '0') ?? 0,
+                          paidAmount: double.tryParse(bill.amountPaid ?? '0') ?? 0,
+                          paymentStatus: bill.paymentStatus?.name ?? 'pending',
+                          onCollectPayment: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => RecordPaymentScreen(billId: bill.id)),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar:
-          const RoleBottomNav(role: 'cashier', activeIndex: 1),
+      bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 1),
     );
   }
 }

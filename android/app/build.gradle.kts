@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.auto_care_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

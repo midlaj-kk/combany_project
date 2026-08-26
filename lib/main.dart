@@ -1,9 +1,13 @@
-import 'package:auto_care_app/features/auth/screen/login_screen.dart';
-import 'package:auto_care_app/features/splash/screen/splash_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'core/di/injection.dart';
 import 'core/theme/app_theme.dart';
+import 'features/splash/screen/splash_screen.dart';
+import 'features/authentication/presentation/bloc/auth_bloc.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await configureDependencies();
   runApp(const AutoCareApp());
 }
 
@@ -12,14 +16,18 @@ class AutoCareApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AutoCare Pro',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      home: SplashScreen(),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-      },
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (_) => getIt<AuthBloc>()..add(const AuthCheckStatus()),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'AutoCare Pro',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        home: const SplashScreen(),
+      ),
     );
   }
 }

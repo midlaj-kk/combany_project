@@ -4,7 +4,8 @@ import 'package:auto_care_app/core/theme/app_text_styles.dart';
 import 'package:auto_care_app/widgets/common/app_button.dart';
 import 'package:auto_care_app/widgets/common/app_text_field.dart';
 import 'package:flutter/material.dart';
-
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:auto_care_app/features/authentication/presentation/bloc/auth_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,58 +19,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _rememberMe = false;
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  String? _loggedInRole;
 
   void _toggleObscurePassword() {
     setState(() => _obscurePassword = !_obscurePassword);
   }
 
-  void _toggleRememberMe(bool value) {
-    setState(() => _rememberMe = value);
-  }
-
-  Future<void> _login() async {
+  void _login() {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Please enter both email and password');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-
-    final String role;
-    final String normalized = email.toLowerCase();
-    if (normalized.contains('advisor')) {
-      role = 'service_advisor';
-    } else if (normalized.contains('mechanic')) {
-      role = 'mechanic';
-    } else if (normalized.contains('cashier')) {
-      role = 'cashier';
-    } else {
-      role = 'admin';
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _loggedInRole = role;
-    });
-  }
-
-  void _onLoginSuccess(String role) {
-    setState(() => _loggedInRole = null);
-    AppRouter.afterLogin(context, role);
+    context.read<AuthBloc>().add(
+          AuthLoginRequested(email: email, password: password),
+        );
   }
 
   @override
@@ -81,151 +46,119 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loggedInRole != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) _onLoginSuccess(_loggedInRole!);
-      });
-    }
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _HeroHeader(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Welcome Back', style: AppTextStyles.heading1),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Manage your workshop efficiently',
-                      style: AppTextStyles.bodySecondary,
-                    ),
-                    const SizedBox(height: 32),
-
-                    AppTextField(
-                      controller: _emailController,
-                      hint: 'you@autocare.com',
-                      icon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-
-                    AppTextField(
-                      controller: _passwordController,
-                      hint: '••••••••',
-                      icon: Icons.lock_outline,
-                      obscureText: _obscurePassword,
-                      trailing: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          color: AppColors.textMuted,
-                          size: 20,
-                        ),
-                        onPressed: _toggleObscurePassword,
-                      ),
-                    ),
-
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 12),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          AppRouter.afterLogin(context, state.user.role);
+        } else if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.statusError,
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _HeroHeader(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Welcome Back', style: AppTextStyles.heading1),
+                      const SizedBox(height: 8),
                       Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: AppColors.statusError,
-                          fontSize: 13,
+                        'Manage your workshop efficiently',
+                        style: AppTextStyles.bodySecondary,
+                      ),
+                      const SizedBox(height: 32),
+
+                      AppTextField(
+                        controller: _emailController,
+                        hint: 'you@autocare.com',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 16),
+
+                      AppTextField(
+                        controller: _passwordController,
+                        hint: '••••••••',
+                        icon: Icons.lock_outline,
+                        obscureText: _obscurePassword,
+                        trailing: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          onPressed: _toggleObscurePassword,
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      BlocBuilder<AuthBloc, AuthState>(
+                        builder: (context, state) {
+                          return AppButton(
+                            label: 'Login',
+                            icon: Icons.arrow_forward,
+                            isLoading: state is AuthLoading,
+                            onPressed: _login,
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          const Expanded(
+                              child: Divider(color: AppColors.divider)),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text("OR", style: AppTextStyles.caption),
+                          ),
+                          const Expanded(
+                              child: Divider(color: AppColors.divider)),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              '© 2026 AutoCare Pro',
+                              style: AppTextStyles.caption,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Privacy Policy  ·  Terms  ·  System Status',
+                              style: AppTextStyles.caption,
+                            ),
+                          ],
                         ),
                       ),
                     ],
-
-                    const SizedBox(height: 16),
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    //   children: [
-                    //     Row(
-                    //       children: [
-                    //         Switch(
-                    //           value: _rememberMe,
-                    //           activeThumbColor: AppColors.limeAccent,
-                    //           onChanged: _toggleRememberMe,
-                    //         ),
-                    //         Text('Remember me',
-                    //             style: AppTextStyles.bodySecondary),
-                    //       ],
-                    //     ),
-                    //     TextButton(
-                    //       onPressed: () {
-                    //         ScaffoldMessenger.of(context).showSnackBar(
-                    //           const SnackBar(
-                    //             content: Text(
-                    //                 'Password reset is handled by your workshop admin.'),
-                    //           ),
-                    //         );
-                    //       },
-                    //       child: const Text(
-                    //         'Forgot Password?',
-                    //         style: TextStyle(color: AppColors.limeAccent),
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
-                    const SizedBox(height: 24),
-
-                    AppButton(
-                      label: 'Login',
-                      icon: Icons.arrow_forward,
-                      isLoading: _isLoading,
-                      onPressed: _login,
-                    ),
-
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        const Expanded(
-                            child: Divider(color: AppColors.divider)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text("OR", style: AppTextStyles.caption),
-                        ),
-                        const Expanded(
-                            child: Divider(color: AppColors.divider)),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    const SizedBox(height: 32),
-                    Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            '© 2026 AutoCare Pro',
-                            style: AppTextStyles.caption,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Privacy Policy  ·  Terms  ·  System Status',
-                            style: AppTextStyles.caption,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-
 
 class _HeroHeader extends StatelessWidget {
   const _HeroHeader();
