@@ -16,27 +16,31 @@ class AuthService {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
 
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
+  // ── Login ────────────────────────────────────────────────────────────────
+
+  Future<bool> login({required String email, required String password}) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.login,
         data: {'email': email, 'password': password},
       );
 
-      final tokenResponse = TokenResponse.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-
-      await _prefs.setString(_accessTokenKey, tokenResponse.access);
-      await _prefs.setString(_refreshTokenKey, tokenResponse.refresh);
-      return true;
-    } catch (e) {
+      if (response.statusCode == 200) {
+        final tokenResponse = TokenResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+        await _prefs.setString(_accessTokenKey, tokenResponse.access);
+        await _prefs.setString(_refreshTokenKey, tokenResponse.refresh);
+        return true;
+      } else {
+        return false;
+      }
+    } on DioException {
       return false;
     }
   }
+
+  // ── Get Current User ────────────────────────────────────────────────────
 
   Future<UserModel?> getCurrentUser() async {
     try {
@@ -50,11 +54,17 @@ class AuthService {
         ),
       );
 
-      return UserModel.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+      if (response.statusCode == 200) {
+        return UserModel.fromJson(response.data as Map<String, dynamic>);
+      } else {
+        return null;
+      }
+    } on DioException {
       return null;
     }
   }
+
+  // ── Token Helpers ────────────────────────────────────────────────────────
 
   Future<bool> isLoggedIn() async {
     final token = _prefs.getString(_accessTokenKey);
@@ -69,24 +79,31 @@ class AuthService {
     return _prefs.getString(_refreshTokenKey);
   }
 
-  Future<void> saveTokens({
-    required String access,
-    required String refresh,
-  }) async {
+  Future<void> saveTokens({required String access, required String refresh}) async {
     await _prefs.setString(_accessTokenKey, access);
     await _prefs.setString(_refreshTokenKey, refresh);
   }
 
+  // ── Logout ───────────────────────────────────────────────────────────────
+
   Future<void> logout() async {
     final refreshToken = _prefs.getString(_refreshTokenKey);
+
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
-        await _dio.post(
+        final response = await _dio.post(
           ApiEndpoints.logout,
           data: {'refresh': refreshToken},
         );
-      } catch (_) {}
+
+        if (response.statusCode != 200 && response.statusCode != 204) {
+          // Logout failed on server, but we still clear local tokens
+        }
+      } on DioException {
+        // Ignore server errors during logout
+      }
     }
+
     await _prefs.remove(_accessTokenKey);
     await _prefs.remove(_refreshTokenKey);
   }

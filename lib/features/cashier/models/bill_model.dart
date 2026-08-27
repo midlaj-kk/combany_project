@@ -128,10 +128,10 @@ class PaginatedBillList {
 
   factory PaginatedBillList.fromJson(Map<String, dynamic> json) {
     return PaginatedBillList(
-      count: json['count'] as int,
+      count: json['count'] as int? ?? 0,
       next: json['next'] as String?,
       previous: json['previous'] as String?,
-      results: (json['results'] as List<dynamic>)
+      results: (json['results'] as List<dynamic>? ?? [])
           .map((e) => BillModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );

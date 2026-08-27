@@ -78,10 +78,10 @@ class PaginatedDeliveryList {
 
   factory PaginatedDeliveryList.fromJson(Map<String, dynamic> json) {
     return PaginatedDeliveryList(
-      count: json['count'] as int,
+      count: json['count'] as int? ?? 0,
       next: json['next'] as String?,
       previous: json['previous'] as String?,
-      results: (json['results'] as List<dynamic>)
+      results: (json['results'] as List<dynamic>? ?? [])
           .map((e) => DeliveryModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
