@@ -160,6 +160,27 @@ class AdvisorService {
     }
   }
 
+  // ── Mechanics ────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getMechanics() async {
+    try {
+      final response = await dio.get(ApiEndpoints.mechanics);
+
+      if (response.statusCode == 200) {
+        final data = _unwrap(response.data);
+        if (data is List) return data;
+        if (data is Map && data.containsKey('results')) {
+          return (data['results'] as List<dynamic>?) ?? [];
+        }
+        return [];
+      } else {
+        throw Exception('Failed to load mechanics (status: ${response.statusCode})');
+      }
+    } on DioException catch (e) {
+      throw Exception(_getErrorMessage(e));
+    }
+  }
+
   // ── Service Jobs ─────────────────────────────────────────────────────────
 
   Future<PaginatedServiceJobList> getJobs({

@@ -158,13 +158,13 @@ class ServiceJobCreateRequest {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'vehicle': vehicle,
       'complaint': complaint,
       'service_type': serviceType,
-      'assigned_mechanic': assignedMechanic,
-      'odometer_reading': odometerReading,
     };
+    if (odometerReading != null) json['odometer_reading'] = odometerReading;
+    return json;
   }
 }
 

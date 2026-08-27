@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../features/admin/models/user_model.dart';
 import '../../features/admin/bloc/bloc.dart';
-import '../../features/admin/bloc/event.dart';
 import '../../features/admin/screens/add_mechanic_screen.dart';
 import '../../features/admin/screens/admin_dashboard_screen.dart';
 import '../../features/admin/screens/inventory_list_screen.dart';
@@ -36,6 +35,10 @@ import '../di/injection.dart';
 
 class AppRouter {
   AppRouter._();
+
+  /// Tracks route changes so kept-alive screens (like Advisor Home) can
+  /// refresh their data when a pushed screen above them is popped.
+  static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
   static void afterLogin(BuildContext context, UserRole role) {
     resetToRoleHome(context, _homeForRole(role));
@@ -194,11 +197,8 @@ class AppRouter {
   static void toJobDetailAdvisor(BuildContext context, {required int jobId}) {
     _push(
       context,
-      MultiBlocProvider(
-        providers: [
-          BlocProvider(create: (_) => getIt<JobBloc>()..add(JobLoadRequested(id: jobId))),
-          BlocProvider(create: (_) => getIt<AdminBloc>()..add(const AdminUsersLoadRequested())),
-        ],
+      BlocProvider(
+        create: (_) => getIt<JobBloc>()..add(JobLoadRequested(id: jobId)),
         child: JobDetailAdvisorScreen(jobId: jobId),
       ),
     );
@@ -211,6 +211,7 @@ class AppRouter {
         providers: [
           BlocProvider(create: (_) => getIt<CustomerBloc>()),
           BlocProvider(create: (_) => getIt<VehicleBloc>()),
+          BlocProvider(create: (_) => getIt<JobBloc>()),
         ],
         child: const AddCustomerScreen(),
       ),
@@ -237,11 +238,8 @@ class AppRouter {
   }) {
     _push(
       context,
-      MultiBlocProvider(
-        providers: [
-          BlocProvider(create: (_) => getIt<JobBloc>()),
-          BlocProvider(create: (_) => getIt<AdminBloc>()),
-        ],
+      BlocProvider(
+        create: (_) => getIt<JobBloc>(),
         child: CreateServiceJobScreen(
           vehicleId: vehicleId,
           vehicleLabel: vehicleLabel,

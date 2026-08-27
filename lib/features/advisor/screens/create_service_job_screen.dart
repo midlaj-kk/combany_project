@@ -1,7 +1,3 @@
-import 'package:auto_care_app/features/admin/models/user_model.dart';
-import 'package:auto_care_app/features/admin/bloc/bloc.dart';
-import 'package:auto_care_app/features/admin/bloc/event.dart';
-import 'package:auto_care_app/features/admin/bloc/state.dart';
 import 'package:auto_care_app/features/advisor/models/service_job_model.dart';
 import 'package:auto_care_app/features/advisor/bloc/job_bloc.dart';
 import 'package:flutter/material.dart';
@@ -40,7 +36,7 @@ class _CreateServiceJobScreenState extends State<CreateServiceJobScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<AdminBloc>().add(const AdminUsersLoadRequested());
+    context.read<JobBloc>().add(const JobMechanicsLoadRequested());
   }
 
   @override
@@ -78,24 +74,15 @@ class _CreateServiceJobScreenState extends State<CreateServiceJobScreen> {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
-        BlocListener<AdminBloc, AdminState>(
-          listener: (context, state) {
-            if (state is AdminUsersLoaded) {
-              final mechanics = state.users.results
-                  .where((u) => u.role == UserRole.mechanic)
-                  .map((u) => {
-                        'id': u.id,
-                        'name': u.name,
-                        'specialization': u.specialization ?? '',
-                      })
-                  .toList();
-              setState(() => _mechanics = mechanics);
-            }
-          },
-        ),
         BlocListener<JobBloc, JobState>(
           listener: (context, state) {
             if (state is JobCreated) {
+              final warning = state.mechanicWarning;
+              if (warning != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(warning)),
+                );
+              }
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => JobCreationConfirmationScreen(
@@ -103,6 +90,8 @@ class _CreateServiceJobScreenState extends State<CreateServiceJobScreen> {
                   ),
                 ),
               );
+            } else if (state is JobMechanicsLoaded) {
+              setState(() => _mechanics = state.mechanics);
             } else if (state is JobError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(state.message)),
@@ -244,7 +233,7 @@ class _CreateServiceJobScreenState extends State<CreateServiceJobScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            'Mechanic list unavailable — the job will be '
+                            'No mechanics available yet — the job will be '
                             'created unassigned and an admin can assign it later.',
                             style: AppTextStyles.caption,
                           ),

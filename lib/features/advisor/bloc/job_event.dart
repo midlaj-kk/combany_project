@@ -45,6 +45,10 @@ class JobChangeMechanicRequested extends JobEvent {
   });
 }
 
+class JobMechanicsLoadRequested extends JobEvent {
+  const JobMechanicsLoadRequested();
+}
+
 class JobUpdateStatusRequested extends JobEvent {
   final int jobId;
   final String status;

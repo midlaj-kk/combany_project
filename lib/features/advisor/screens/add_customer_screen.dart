@@ -1,7 +1,9 @@
 import 'package:auto_care_app/features/advisor/models/customer_model.dart';
 import 'package:auto_care_app/features/advisor/models/vehicle_model.dart';
+import 'package:auto_care_app/features/advisor/models/service_job_model.dart';
 import 'package:auto_care_app/features/advisor/bloc/customer_bloc.dart';
 import 'package:auto_care_app/features/advisor/bloc/vehicle_bloc.dart';
+import 'package:auto_care_app/features/advisor/bloc/job_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
@@ -10,6 +12,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../widgets/advisor_tip_banner.dart';
 import '../widgets/brand_dropdown.dart';
+import '../widgets/mechanic_picker.dart';
 import '../widgets/number_stepper.dart';
 import '../widgets/step_progress_indicator.dart';
 
@@ -37,6 +40,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   bool completedSuccessfully = false;
 
   int? _createdCustomerId;
+  int? _createdVehicleId;
+
+  final TextEditingController complaintController = TextEditingController();
+  final TextEditingController serviceTypeController = TextEditingController();
+  final TextEditingController odometerController = TextEditingController();
+  int? selectedMechanicId;
+  List<Map<String, dynamic>> mechanics = [];
 
   void _setBrand(String? brand) {
     setState(() => selectedBrand = brand);
@@ -44,6 +54,36 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   void _setYear(int newYear) {
     setState(() => year = newYear);
+  }
+
+  void _selectMechanic(int? mechanicId) {
+    setState(() => selectedMechanicId = mechanicId);
+  }
+
+  void _submitServiceStep() {
+    if (_createdVehicleId == null) {
+      return;
+    }
+    if (complaintController.text.trim().isEmpty ||
+        serviceTypeController.text.trim().isEmpty) {
+      return;
+    }
+
+    context.read<JobBloc>().add(
+      JobCreateRequested(
+        request: ServiceJobCreateRequest(
+          vehicle: _createdVehicleId!,
+          complaint: complaintController.text.trim(),
+          serviceType: serviceTypeController.text.trim(),
+          odometerReading: int.tryParse(odometerController.text.trim()),
+          assignedMechanic: selectedMechanicId,
+        ),
+      ),
+    );
+  }
+
+  void _skipServiceStep() {
+    setState(() => completedSuccessfully = true);
   }
 
   void _submitCustomerStep() {
@@ -109,6 +149,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     vehicleNumberController.dispose();
     modelController.dispose();
     kilometersController.dispose();
+    complaintController.dispose();
+    serviceTypeController.dispose();
+    odometerController.dispose();
     super.dispose();
   }
 
@@ -129,7 +172,30 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         BlocListener<VehicleBloc, VehicleState>(
           listener: (context, state) {
             if (state is VehicleCreated) {
+              setState(() {
+                _createdVehicleId = state.vehicle.id;
+                currentStep = 3;
+              });
+              context.read<JobBloc>().add(const JobMechanicsLoadRequested());
+            }
+          },
+        ),
+        BlocListener<JobBloc, JobState>(
+          listener: (context, state) {
+            if (state is JobCreated) {
               setState(() => completedSuccessfully = true);
+              final warning = state.mechanicWarning;
+              if (warning != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(warning)),
+                );
+              }
+            } else if (state is JobMechanicsLoaded) {
+              setState(() => mechanics = state.mechanics);
+            } else if (state is JobError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(state.message)),
+              );
             }
           },
         ),
@@ -154,8 +220,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               }
             },
             builder: (context, vehicleState) {
+              final jobState = context.watch<JobBloc>().state;
               final isLoading = customerState is CustomerLoading ||
-                  vehicleState is VehicleLoading;
+                  vehicleState is VehicleLoading ||
+                  jobState is JobLoading;
 
               if (completedSuccessfully) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -181,6 +249,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                               onPressed: () {
                                 if (currentStep == 2) {
                                   _goBackToStep1();
+                                } else if (currentStep == 3) {
+                                  setState(() => currentStep = 2);
                                 } else {
                                   Navigator.of(context).maybePop();
                                 }
@@ -214,10 +284,16 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                                   state: this,
                                   isLoading: isLoading,
                                 )
-                              : _VehicleStep(
-                                  state: this,
-                                  isLoading: isLoading,
-                                ),
+                              : currentStep == 2
+                                  ? _VehicleStep(
+                                      state: this,
+                                      isLoading: isLoading,
+                                    )
+                                  : _ServiceStep(
+                                      state: this,
+                                      isLoading: isLoading,
+                                      mechanics: mechanics,
+                                    ),
                         ),
                       ),
                     ],
@@ -454,6 +530,105 @@ class _VehicleStep extends StatelessWidget {
           child: TextButton(
             onPressed:
                 isLoading ? null : () => state._skipVehicleStep(),
+            child: Text('Skip for now', style: AppTextStyles.bodySecondary),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceStep extends StatelessWidget {
+  const _ServiceStep({
+    required this.state,
+    required this.isLoading,
+    required this.mechanics,
+  });
+  final _AddCustomerScreenState state;
+  final bool isLoading;
+  final List<Map<String, dynamic>> mechanics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Create Service Job', style: AppTextStyles.heading2),
+        const SizedBox(height: 6),
+        Text(
+          'Describe the service required for this vehicle.',
+          style: AppTextStyles.bodySecondary,
+        ),
+        const SizedBox(height: 24),
+
+        const _FieldLabel('Complaint / Issue'),
+        TextField(
+          controller: state.complaintController,
+          maxLines: 3,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(
+            hintText: 'Describe the problem reported by the customer...',
+            prefixIcon: Padding(
+              padding: EdgeInsets.only(bottom: 40),
+              child: Icon(Icons.report_problem_outlined,
+                  color: AppColors.textMuted, size: 20),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        const _FieldLabel('Service Type'),
+        AppTextField(
+          controller: state.serviceTypeController,
+          hint: 'e.g. Full Service + Brake Pad Replacement',
+          icon: Icons.build_outlined,
+        ),
+        const SizedBox(height: 16),
+
+        const _FieldLabel('Odometer Reading'),
+        AppTextField(
+          controller: state.odometerController,
+          hint: '45,200',
+          icon: Icons.speed_outlined,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 20),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _FieldLabel('Assign Mechanic'),
+            Text('Skip — assign later', style: AppTextStyles.caption),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        MechanicPicker(
+          mechanics: mechanics,
+          selectedMechanicId: state.selectedMechanicId,
+          onSelected: (id) => state._selectMechanic(id),
+        ),
+        if (mechanics.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'No mechanics available yet — the job will be '
+              'created unassigned and an admin can assign it later.',
+              style: AppTextStyles.caption,
+            ),
+          ),
+
+        const SizedBox(height: 28),
+        AppButton(
+          label: 'Create Service Job',
+          icon: Icons.bolt,
+          isLoading: isLoading,
+          onPressed: () => state._submitServiceStep(),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton(
+            onPressed: isLoading ? null : () => state._skipServiceStep(),
             child: Text('Skip for now', style: AppTextStyles.bodySecondary),
           ),
         ),

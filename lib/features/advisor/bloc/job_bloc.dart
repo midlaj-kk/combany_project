@@ -17,6 +17,7 @@ class JobBloc extends Bloc<JobEvent, JobState> {
     on<JobAssignMechanicRequested>(_onAssignMechanic);
     on<JobChangeMechanicRequested>(_onChangeMechanic);
     on<JobUpdateStatusRequested>(_onUpdateStatus);
+    on<JobMechanicsLoadRequested>(_onLoadMechanics);
   }
 
   Future<void> _onLoadJobs(
@@ -56,8 +57,20 @@ class JobBloc extends Bloc<JobEvent, JobState> {
   ) async {
     emit(const JobLoading());
     try {
-      final job = await service.createJob(event.request);
-      emit(JobCreated(job: job));
+      var job = await service.createJob(event.request);
+
+      String? mechanicWarning;
+      if (event.request.assignedMechanic != null) {
+        try {
+          job = await service.assignMechanic(job.id, event.request.assignedMechanic!);
+        } catch (e) {
+          mechanicWarning =
+              'Job created, but the mechanic could not be assigned '
+              '(${e.toString()}). It will need to be assigned later.';
+        }
+      }
+
+      emit(JobCreated(job: job, mechanicWarning: mechanicWarning));
     } catch (e) {
       emit(JobError(message: e.toString()));
     }
@@ -97,6 +110,26 @@ class JobBloc extends Bloc<JobEvent, JobState> {
     try {
       final job = await service.updateJobStatus(event.jobId, event.status);
       emit(JobUpdated(job: job));
+    } catch (e) {
+      emit(JobError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onLoadMechanics(
+    JobMechanicsLoadRequested event,
+    Emitter<JobState> emit,
+  ) async {
+    try {
+      final rawMechanics = await service.getMechanics();
+      final mechanics = rawMechanics.map((e) {
+        final map = e as Map<String, dynamic>;
+        return {
+          'id': map['id'] as int,
+          'name': map['name'] as String? ?? '',
+          'specialization': map['specialization'] as String? ?? '',
+        };
+      }).toList();
+      emit(JobMechanicsLoaded(mechanics: mechanics));
     } catch (e) {
       emit(JobError(message: e.toString()));
     }

@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'features/splash/screens/splash_screen.dart';
 import 'features/auth/bloc/bloc.dart';
 import 'features/auth/bloc/event.dart';
+import 'core/router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,7 @@ class AutoCareApp extends StatelessWidget {
         title: 'AutoCare Pro',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
+        navigatorObservers: [AppRouter.routeObserver],
         home: const SplashScreen(),
       ),
     );

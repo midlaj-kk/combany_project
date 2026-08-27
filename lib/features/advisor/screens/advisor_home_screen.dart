@@ -17,7 +17,8 @@ class AdvisorHomeScreen extends StatefulWidget {
   State<AdvisorHomeScreen> createState() => _AdvisorHomeScreenState();
 }
 
-class _AdvisorHomeScreenState extends State<AdvisorHomeScreen> {
+class _AdvisorHomeScreenState extends State<AdvisorHomeScreen>
+    with RouteAware {
   static const _tabs = [
     ('all', 'All'),
     ('waiting', 'Waiting'),
@@ -26,6 +27,31 @@ class _AdvisorHomeScreenState extends State<AdvisorHomeScreen> {
   ];
 
   String _selectedFilter = 'all';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  /// Reload the job list whenever this screen becomes visible again (i.e.
+  /// after returning from a pushed screen like Customer List or Job Detail),
+  /// so newly created or updated jobs show up in "Today's Jobs".
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    context.read<JobBloc>().add(const JobsLoadRequested());
+    super.didPopNext();
+  }
 
   void _setFilter(String filter) {
     setState(() => _selectedFilter = filter);

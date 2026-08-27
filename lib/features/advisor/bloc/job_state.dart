@@ -24,7 +24,8 @@ class JobLoaded extends JobState {
 
 class JobCreated extends JobState {
   final ServiceJobModel job;
-  const JobCreated({required this.job});
+  final String? mechanicWarning;
+  const JobCreated({required this.job, this.mechanicWarning});
 }
 
 class JobUpdated extends JobState {
@@ -35,4 +36,9 @@ class JobUpdated extends JobState {
 class JobError extends JobState {
   final String message;
   const JobError({required this.message});
+}
+
+class JobMechanicsLoaded extends JobState {
+  final List<Map<String, dynamic>> mechanics;
+  const JobMechanicsLoaded({required this.mechanics});
 }
