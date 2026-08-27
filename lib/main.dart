@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/di/injection.dart';
 import 'core/theme/app_theme.dart';
-import 'features/splash/screen/splash_screen.dart';
-import 'features/authentication/presentation/bloc/auth_bloc.dart';
+import 'features/splash/screens/splash_screen.dart';
+import 'features/auth/bloc/bloc.dart';
+import 'features/auth/bloc/event.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
