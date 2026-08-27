@@ -252,7 +252,12 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.dashboardSummary);
 
       if (response.statusCode == 200) {
-        return response.data as Map<String, dynamic>;
+        final body = response.data as Map<String, dynamic>;
+        final data = body['data'];
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+        return body;
       } else {
         throw Exception('Failed to load dashboard (status: ${response.statusCode})');
       }

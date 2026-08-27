@@ -50,7 +50,11 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401) {
+    // Never try to refresh again when the refresh request itself fails,
+    // otherwise this would loop forever on a bad/expired refresh token.
+    final isRefreshRequest = err.requestOptions.path.contains('/auth/refresh/');
+
+    if (!isRefreshRequest && err.response?.statusCode == 401) {
       final refreshToken = getRefreshToken?.call();
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {

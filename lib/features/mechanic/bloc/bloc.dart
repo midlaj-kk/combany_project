@@ -39,8 +39,8 @@ class MechanicBloc extends Bloc<MechanicEvent, MechanicState> {
   Future<void> _onUpdateWorkStatus(MechanicWorkStatusUpdateRequested event, Emitter<MechanicState> emit) async {
     emit(const MechanicLoading());
     try {
-      final work = await service.updateWorkStatus(event.workId, event.status);
-      emit(MechanicWorkUpdated(work: work));
+      await service.updateWorkStatus(event.workId, event.status);
+      emit(const MechanicWorkUpdated());
     } catch (e) {
       emit(MechanicError(message: e.toString()));
     }

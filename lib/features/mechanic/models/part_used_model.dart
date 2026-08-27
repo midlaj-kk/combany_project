@@ -62,7 +62,7 @@ class PartUsedCreateRequest {
   Map<String, dynamic> toJson() {
     return {
       'service_job': serviceJob,
-      'part': part,
+      'part_id': part,
       'quantity': quantity,
     };
   }

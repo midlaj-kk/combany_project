@@ -24,8 +24,7 @@ class MechanicWorkCreated extends MechanicState {
 }
 
 class MechanicWorkUpdated extends MechanicState {
-  final ServiceWorkModel work;
-  const MechanicWorkUpdated({required this.work});
+  const MechanicWorkUpdated();
 }
 
 class MechanicPartsUsedLoaded extends MechanicState {

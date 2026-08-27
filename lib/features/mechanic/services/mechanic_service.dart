@@ -46,16 +46,14 @@ class MechanicService {
     }
   }
 
-  Future<ServiceWorkModel> updateWorkStatus(int workId, String status) async {
+  Future<void> updateWorkStatus(int workId, String status) async {
     try {
-      final response = await dio.post(
+      final response = await dio.patch(
         ApiEndpoints.workStatus(workId),
         data: {'status': status},
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return ServiceWorkModel.fromJson(response.data as Map<String, dynamic>);
-      } else {
+      if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('Failed to update work status (status: ${response.statusCode})');
       }
     } on DioException catch (e) {
@@ -92,7 +90,10 @@ class MechanicService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return PartUsedModel.fromJson(response.data as Map<String, dynamic>);
+        final data = response.data is Map
+            ? response.data['data']
+            : response.data;
+        return PartUsedModel.fromJson(data as Map<String, dynamic>);
       } else {
         throw Exception('Failed to add part used (status: ${response.statusCode})');
       }

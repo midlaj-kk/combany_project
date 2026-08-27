@@ -25,15 +25,48 @@ class AdminDashboardScreen extends StatefulWidget {
       _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+    with RouteAware {
+  late final AdminBloc _adminBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _adminBloc = AdminBloc(service: getIt<AdminService>())
+      ..add(const AdminDashboardSummaryRequested());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
+    _adminBloc.close();
+    super.dispose();
+  }
+
+  /// Reload fresh dashboard data whenever this screen becomes visible again
+  /// (i.e. after returning from a pushed screen like Quality Check), so the
+  /// Active Jobs, Pending QC and Recent Jobs reflect the latest state.
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    _adminBloc.add(const AdminDashboardSummaryRequested());
+    super.didPopNext();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (_) => AdminBloc(service: getIt<AdminService>())
-            ..add(const AdminDashboardSummaryRequested()),
-        ),
+        BlocProvider<AdminBloc>.value(value: _adminBloc),
         BlocProvider(
           create: (_) => JobBloc(service: getIt<AdvisorService>()),
         ),

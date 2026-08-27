@@ -31,9 +31,13 @@ class _SplashScreenState extends State<SplashScreen> {
     var state = authBloc.state;
 
     if (state is! AuthAuthenticated && state is! AuthUnauthenticated) {
-      state = await authBloc.stream.firstWhere(
-        (s) => s is AuthAuthenticated || s is AuthUnauthenticated,
-      );
+      try {
+        state = await authBloc.stream.firstWhere(
+          (s) => s is AuthAuthenticated || s is AuthUnauthenticated,
+        ).timeout(const Duration(seconds: 10));
+      } on TimeoutException {
+        state = AuthUnauthenticated();
+      }
     }
 
     if (!mounted) return;

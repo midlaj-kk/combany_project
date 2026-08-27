@@ -155,17 +155,15 @@ class CashierService {
       final response = await dio.get(ApiEndpoints.readyForDelivery);
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = response.data is Map
+            ? response.data['data']
+            : response.data;
         if (data is List) {
           return data
               .map((e) => ReadyJobModel.fromJson(e as Map<String, dynamic>))
               .toList();
         }
-        final results = data['results'];
-        if (results == null || results is! List) return [];
-        return results
-            .map((e) => ReadyJobModel.fromJson(e as Map<String, dynamic>))
-            .toList();
+        return [];
       } else {
         throw Exception('Failed to load ready deliveries (status: ${response.statusCode})');
       }
@@ -179,17 +177,15 @@ class CashierService {
       final response = await dio.get(ApiEndpoints.delivered);
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = response.data is Map
+            ? response.data['data']
+            : response.data;
         if (data is List) {
           return data
               .map((e) => DeliveryModel.fromJson(e as Map<String, dynamic>))
               .toList();
         }
-        final results = data['results'];
-        if (results == null || results is! List) return [];
-        return results
-            .map((e) => DeliveryModel.fromJson(e as Map<String, dynamic>))
-            .toList();
+        return [];
       } else {
         throw Exception('Failed to load delivered items (status: ${response.statusCode})');
       }
