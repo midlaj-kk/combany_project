@@ -14,15 +14,12 @@ class CashierService {
 
   Future<PaginatedBillList> getBills({String? paymentStatus, int? page, int? pageSize}) async {
     try {
-      final response = await dio.get(
-        ApiEndpoints.bills,
-        queryParameters: {
-          if (paymentStatus != null && paymentStatus.isNotEmpty)
-            'payment_status': paymentStatus,
-          if (page != null) 'page': page,
-          if (pageSize != null) 'page_size': pageSize,
-        },
-      );
+      final params = <String, dynamic>{};
+      if (paymentStatus != null && paymentStatus.isNotEmpty) params['payment_status'] = paymentStatus;
+      if (page != null) params['page'] = page;
+      if (pageSize != null) params['page_size'] = pageSize;
+
+      final response = await dio.get(ApiEndpoints.bills, queryParameters: params);
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -109,13 +106,11 @@ class CashierService {
 
   Future<PaginatedPaymentList> getPayments({int? page, int? pageSize}) async {
     try {
-      final response = await dio.get(
-        ApiEndpoints.payments,
-        queryParameters: {
-          if (page != null) 'page': page,
-          if (pageSize != null) 'page_size': pageSize,
-        },
-      );
+      final params = <String, dynamic>{};
+      if (page != null) params['page'] = page;
+      if (pageSize != null) params['page_size'] = pageSize;
+
+      final response = await dio.get(ApiEndpoints.payments, queryParameters: params);
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -216,7 +211,33 @@ class CashierService {
       if (data is Map && data.containsKey('message')) {
         return data['message'].toString();
       }
-      return 'Server error ($statusCode). Please try again.';
+
+      switch (statusCode) {
+        case 400:
+          return 'Bad request. Please check your input.';
+        case 401:
+          return 'Unauthorized. Please login again.';
+        case 403:
+          return 'Access denied. You do not have permission.';
+        case 404:
+          return 'Resource not found.';
+        case 409:
+          return 'Conflict. The resource already exists.';
+        case 422:
+          return 'Validation error. Please check your input.';
+        case 429:
+          return 'Too many requests. Please try again later.';
+        case 500:
+          return 'Internal server error. Please try again later.';
+        case 502:
+          return 'Bad gateway. Please try again later.';
+        case 503:
+          return 'Service unavailable. Please try again later.';
+        case 504:
+          return 'Gateway timeout. Please try again later.';
+        default:
+          return 'Server error ($statusCode). Please try again.';
+      }
     }
 
     if (e.type == DioExceptionType.connectionTimeout ||

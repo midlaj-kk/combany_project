@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:auto_care_app/features/admin/data/models/user_model.dart';
+import 'package:auto_care_app/features/admin/models/user_model.dart';
 
 void main() {
   group('UserCreateRequest serialization', () {

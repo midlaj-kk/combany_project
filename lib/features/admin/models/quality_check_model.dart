@@ -155,22 +155,22 @@ class QualityCheckCreateRequest {
   }
 
   Map<String, dynamic> toJson() {
-    String _testDriveEnumToJson(TestDriveEnum e) => e.name;
-    String _oilLeakageCheckEnumToJson(OilLeakageCheckEnum e) => e.name;
-    String _overallStatusEnumToJson(OverallStatusEnum e) {
+    String testDriveEnumToJson(TestDriveEnum e) => e.name;
+    String oilLeakageCheckEnumToJson(OilLeakageCheckEnum e) => e.name;
+    String overallStatusEnumToJson(OverallStatusEnum e) {
       return switch (e) {
         OverallStatusEnum.reworkRequired => 'rework_required',
         _ => e.name,
       };
     }
     return {
-      'brake_check': _testDriveEnumToJson(brakeCheck),
-      'engine_check': _testDriveEnumToJson(engineCheck),
-      'oil_leakage_check': _oilLeakageCheckEnumToJson(oilLeakageCheck),
-      'ac_check': _testDriveEnumToJson(acCheck),
-      'tyre_check': _testDriveEnumToJson(tyreCheck),
-      'test_drive': _testDriveEnumToJson(testDrive),
-      'overall_status': _overallStatusEnumToJson(overallStatus),
+      'brake_check': testDriveEnumToJson(brakeCheck),
+      'engine_check': testDriveEnumToJson(engineCheck),
+      'oil_leakage_check': oilLeakageCheckEnumToJson(oilLeakageCheck),
+      'ac_check': testDriveEnumToJson(acCheck),
+      'tyre_check': testDriveEnumToJson(tyreCheck),
+      'test_drive': testDriveEnumToJson(testDrive),
+      'overall_status': overallStatusEnumToJson(overallStatus),
       'remarks': remarks,
       'service_job': serviceJob,
     };

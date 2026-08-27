@@ -26,8 +26,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String _topMechanicName = '';
   int _topMechanicJobs = 0;
   String _mostUsedPartName = '';
-  double _pendingPaymentsTotal = 0;
-  int _lowStockCount = 0;
+  final double _pendingPaymentsTotal = 0;
+  final int _lowStockCount = 0;
 
   bool _revenueLoaded = false;
   bool _completedLoaded = false;

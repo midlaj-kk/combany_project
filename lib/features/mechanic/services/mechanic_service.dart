@@ -12,14 +12,12 @@ class MechanicService {
 
   Future<PaginatedServiceWorkList> getWorks({int? serviceJob, int? page, int? pageSize}) async {
     try {
-      final response = await dio.get(
-        ApiEndpoints.works,
-        queryParameters: {
-          if (serviceJob != null) 'service_job': serviceJob,
-          if (page != null) 'page': page,
-          if (pageSize != null) 'page_size': pageSize,
-        },
-      );
+      final params = <String, dynamic>{};
+      if (serviceJob != null) params['service_job'] = serviceJob;
+      if (page != null) params['page'] = page;
+      if (pageSize != null) params['page_size'] = pageSize;
+
+      final response = await dio.get(ApiEndpoints.works, queryParameters: params);
 
       if (response.statusCode == 200) {
         return PaginatedServiceWorkList.fromJson(response.data as Map<String, dynamic>);
@@ -69,14 +67,12 @@ class MechanicService {
 
   Future<PaginatedPartUsedList> getPartsUsed({int? serviceJob, int? page, int? pageSize}) async {
     try {
-      final response = await dio.get(
-        ApiEndpoints.partsUsed,
-        queryParameters: {
-          if (serviceJob != null) 'service_job': serviceJob,
-          if (page != null) 'page': page,
-          if (pageSize != null) 'page_size': pageSize,
-        },
-      );
+      final params = <String, dynamic>{};
+      if (serviceJob != null) params['service_job'] = serviceJob;
+      if (page != null) params['page'] = page;
+      if (pageSize != null) params['page_size'] = pageSize;
+
+      final response = await dio.get(ApiEndpoints.partsUsed, queryParameters: params);
 
       if (response.statusCode == 200) {
         return PaginatedPartUsedList.fromJson(response.data as Map<String, dynamic>);
@@ -130,7 +126,33 @@ class MechanicService {
       if (data is Map && data.containsKey('message')) {
         return data['message'].toString();
       }
-      return 'Server error ($statusCode). Please try again.';
+
+      switch (statusCode) {
+        case 400:
+          return 'Bad request. Please check your input.';
+        case 401:
+          return 'Unauthorized. Please login again.';
+        case 403:
+          return 'Access denied. You do not have permission.';
+        case 404:
+          return 'Resource not found.';
+        case 409:
+          return 'Conflict. The resource already exists.';
+        case 422:
+          return 'Validation error. Please check your input.';
+        case 429:
+          return 'Too many requests. Please try again later.';
+        case 500:
+          return 'Internal server error. Please try again later.';
+        case 502:
+          return 'Bad gateway. Please try again later.';
+        case 503:
+          return 'Service unavailable. Please try again later.';
+        case 504:
+          return 'Gateway timeout. Please try again later.';
+        default:
+          return 'Server error ($statusCode). Please try again.';
+      }
     }
 
     if (e.type == DioExceptionType.connectionTimeout ||
