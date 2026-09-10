@@ -100,9 +100,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         }
                       } else if (state is JobError) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'No jobs pending quality check')),
+                          SnackBar(
+                            content: Text(
+                                'Could not load pending QC. ${state.message}'),
+                            backgroundColor: AppColors.statusError,
+                          ),
                         );
                       }
                     },

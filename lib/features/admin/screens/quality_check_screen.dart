@@ -4,7 +4,6 @@ import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../advisor/models/service_job_model.dart';
-import '../../advisor/services/advisor_service.dart';
 import '../../advisor/bloc/job_bloc.dart';
 import '../services/admin_service.dart';
 import '../models/quality_check_model.dart';
@@ -118,36 +117,32 @@ class _QualityCheckScreenState extends State<QualityCheckScreen> {
       });
     }
 
-    return BlocProvider(
-      create: (_) => JobBloc(service: getIt<AdvisorService>())
-        ..add(JobLoadRequested(id: widget.serviceJobId)),
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: BlocBuilder<JobBloc, JobState>(
-            builder: (context, state) {
-              if (state is JobLoading || state is JobInitial) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                      color: AppColors.limeAccent),
-                );
-              }
-              if (state is JobError) {
-                return Center(
-                  child: Text(state.message,
-                      style: AppTextStyles.bodySecondary),
-                );
-              }
-              if (state is JobLoaded) {
-                final job = state.job;
-                return _buildContent(context, job);
-              }
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: BlocBuilder<JobBloc, JobState>(
+          builder: (context, state) {
+            if (state is JobLoading || state is JobInitial) {
               return const Center(
                 child: CircularProgressIndicator(
                     color: AppColors.limeAccent),
               );
-            },
-          ),
+            }
+            if (state is JobError) {
+              return Center(
+                child: Text(state.message,
+                    style: AppTextStyles.bodySecondary),
+              );
+            }
+            if (state is JobLoaded) {
+              final job = state.job;
+              return _buildContent(context, job);
+            }
+            return const Center(
+              child: CircularProgressIndicator(
+                  color: AppColors.limeAccent),
+            );
+          },
         ),
       ),
     );
@@ -227,7 +222,7 @@ class _QualityCheckScreenState extends State<QualityCheckScreen> {
                       const SizedBox(height: 10),
                       _InfoLine(
                         label: 'BRAND/MODEL',
-                        value: job.serviceType,
+                        value: job.vehicleModel ?? job.serviceType,
                       ),
                       const SizedBox(height: 10),
                       _InfoLine(

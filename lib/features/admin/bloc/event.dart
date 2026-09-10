@@ -81,3 +81,11 @@ class AdminSparePartsUsageRequested extends AdminEvent {
 class AdminDailyRevenueRequested extends AdminEvent {
   const AdminDailyRevenueRequested();
 }
+
+class AdminPendingPaymentsRequested extends AdminEvent {
+  const AdminPendingPaymentsRequested();
+}
+
+class AdminLowStockRequested extends AdminEvent {
+  const AdminLowStockRequested();
+}

@@ -170,7 +170,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                                 style: AppTextStyles.caption
                                     .copyWith(letterSpacing: 0.4)),
                             Text(
-                              '',
+                              vehicle?.customerName ?? 'Not available',
                               style: AppTextStyles.bodyRegular
                                   .copyWith(
                                       fontWeight: FontWeight.bold),
@@ -190,7 +190,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                           vehicleId: widget.vehicleId,
                           vehicleLabel:
                               vehicle?.vehicleNumber ?? '',
-                          customerName: '',
+                          customerName:
+                              vehicle?.customerName ?? '',
                         ),
                         icon: const Icon(Icons.add,
                             color: Colors.black),
@@ -234,43 +235,6 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       }),
 
                     const SizedBox(height: 20),
-
-                    // --- Additional vehicle specs ---
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _SpecCard(
-                            label: 'FUEL TYPE',
-                            value: 'Petrol',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _SpecCard(
-                            label: 'TRANSMISSION',
-                            value: 'Automatic',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _SpecCard(
-                            label: 'ENGINE',
-                            value: 'N/A',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _SpecCard(
-                            label: 'LAST CHECKUP',
-                            value: 'N/A',
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -300,34 +264,6 @@ class _InfoBlock extends StatelessWidget {
             style: AppTextStyles.bodyRegular
                 .copyWith(fontWeight: FontWeight.bold)),
       ],
-    );
-  }
-}
-
-class _SpecCard extends StatelessWidget {
-  const _SpecCard({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: AppTextStyles.caption.copyWith(letterSpacing: 0.5)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: AppTextStyles.bodyRegular
-                  .copyWith(fontWeight: FontWeight.bold)),
-        ],
-      ),
     );
   }
 }

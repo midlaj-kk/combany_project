@@ -2,10 +2,13 @@ import 'package:dio/dio.dart';
 
 import '../config/api_config.dart';
 
+// this class creates the dio instance used for all our api calls.
+// it sets the base url and timeouts, and adds our interceptors.
 class DioClient {
   late final Dio _dio;
 
   DioClient({String? baseUrl}) {
+    // set up the base options for dio.
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl ?? ApiConfig.baseUrl,
@@ -18,6 +21,7 @@ class DioClient {
       ),
     );
 
+    // add our interceptors in order.
     _dio.interceptors.addAll([
       AuthInterceptor(_dio),
       LogInterceptor(requestBody: true, responseBody: true),
@@ -25,23 +29,28 @@ class DioClient {
     ]);
   }
 
+  // other classes use this getter to access dio.
   Dio get dio => _dio;
 }
 
+// this interceptor adds the access token to the request headers. 
+// it also refreshes the token when we get a 401 error.
 class AuthInterceptor extends Interceptor {
   final Dio _dio;
 
-  static String Function()? getToken;
-  static String Function()? getRefreshToken;
-  static Future<void> Function(String)? setTokens;
+  // these are set from injection.dart so we don't need to
+  // know how the tokens are stored.
+  static Future<String?> Function()? getToken;
+  static Future<String?> Function()? getRefreshToken;
+  static Future<void> Function(String access, String? refresh)? setTokens;
   static Future<void> Function()? clearTokens;
 
   AuthInterceptor(this._dio);
 
   @override
-  void onRequest(
-      RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = getToken?.call();
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // read the token and add it to the headers.
+    final token = await getToken?.call();
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -50,59 +59,79 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    // Never try to refresh again when the refresh request itself fails,
-    // otherwise this would loop forever on a bad/expired refresh token.
+    // we don't want to refresh the token again if the refresh request
+    // itself failed, otherwise it would loop forever.
     final isRefreshRequest = err.requestOptions.path.contains('/auth/refresh/');
 
+    // only try to refresh when we got a 401 and it's not the refresh call.
     if (!isRefreshRequest && err.response?.statusCode == 401) {
-      final refreshToken = getRefreshToken?.call();
+      final refreshToken = await getRefreshToken?.call();
+
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
+          // call the backend to get a new access token.
           final response = await _dio.post(
             '/api/v1/auth/refresh/',
             data: {'refresh': refreshToken},
           );
-          final newAccess = response.data['access'] as String?;
+
+          var refreshBody = response.data;
+          if (refreshBody is Map<String, dynamic> &&
+              refreshBody.containsKey('success') &&
+              refreshBody.containsKey('data')) {
+            refreshBody = refreshBody['data'];
+          }
+          final newAccess =
+              (refreshBody is Map<String, dynamic>) ? refreshBody['access'] as String? : null;
+          // SimpleJWT returns a rotated refresh token too; keep it so the next
+          // refresh doesn't try to use a blacklisted token.
+          final newRefresh =
+              (refreshBody is Map<String, dynamic>) ? refreshBody['refresh'] as String? : null;
+
           if (newAccess != null) {
-            await setTokens?.call(newAccess);
+            // save the new tokens so the next requests use them.
+            await setTokens?.call(newAccess, newRefresh);
+
+            // put the new token on the original request and retry it.
             err.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
-            final response = await _dio.fetch(err.requestOptions);
-            return handler.resolve(response);
+            final retried = await _dio.fetch(err.requestOptions);
+            return handler.resolve(retried);
           }
         } catch (_) {
+          // the refresh failed, so log the user out.
           await clearTokens?.call();
         }
       }
     }
+
+    // if we made it here, just pass the error along.
     handler.next(err);
   }
 }
 
+// this interceptor turns dio errors into readable messages.
 class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     String message;
-    switch (err.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        message =
-            'Connection timed out. Please check your internet connection.';
-        break;
-      case DioExceptionType.connectionError:
-        message = 'No internet connection.';
-        break;
-      case DioExceptionType.badResponse:
-        message = _handleBadResponse(
-            err.response?.statusCode, err.response?.data);
-        break;
-      case DioExceptionType.cancel:
-        message = 'Request was cancelled.';
-        break;
-      default:
-        message = 'An unexpected error occurred.';
+
+    // pick a message based on the type of error.
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.receiveTimeout) {
+      message = 'Connection timed out. Please check your internet connection.';
+    } else if (err.type == DioExceptionType.connectionError) {
+      message = 'No internet connection.';
+    } else if (err.type == DioExceptionType.badResponse) {
+      // for a bad response we use the status code and the body.
+      message = _handleBadResponse(err.response?.statusCode, err.response?.data);
+    } else if (err.type == DioExceptionType.cancel) {
+      message = 'Request was cancelled.';
+    } else {
+      message = 'An unexpected error occurred.';
     }
 
+    // create a new error with our message so the ui can show it.
     handler.next(DioException(
       requestOptions: err.requestOptions,
       response: err.response,
@@ -111,31 +140,39 @@ class ErrorInterceptor extends Interceptor {
     ));
   }
 
+  // get the best message from the backend response.
   String _handleBadResponse(int? statusCode, dynamic data) {
     if (data is Map<String, dynamic>) {
+      // django usually sends a "detail" message for errors.
       if (data.containsKey('detail')) {
         return data['detail'].toString();
       }
+
+      // sometimes it sends a map of field name to a list of errors.
       final errors = <String>[];
       data.forEach((key, value) {
         if (value is List) {
           errors.add('$key: ${value.join(', ')}');
         }
       });
-      if (errors.isNotEmpty) return errors.join('\n');
+      if (errors.isNotEmpty) {
+        return errors.join('\n');
+      }
     }
 
-    switch (statusCode) {
-      case 400:
-        return 'Bad request. Please check your input.';
-      case 403:
-        return "You don't have permission to perform this action.";
-      case 404:
-        return 'The requested resource was not found.';
-      case 500:
-        return 'Server error. Please try again later.';
-      default:
-        return 'An error occurred (${statusCode ?? "unknown"}).';
+    // fall back to a message based on the status code.
+    if (statusCode == 400) {
+      return 'Bad request. Please check your input.';
     }
+    if (statusCode == 403) {
+      return "You don't have permission to perform this action.";
+    }
+    if (statusCode == 404) {
+      return 'The requested resource was not found.';
+    }
+    if (statusCode == 500) {
+      return 'Server error. Please try again later.';
+    }
+    return 'An error occurred (${statusCode ?? "unknown"}).';
   }
 }

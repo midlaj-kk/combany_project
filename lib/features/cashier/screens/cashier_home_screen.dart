@@ -18,11 +18,33 @@ class CashierHomeScreen extends StatefulWidget {
   State<CashierHomeScreen> createState() => _CashierHomeScreenState();
 }
 
-class _CashierHomeScreenState extends State<CashierHomeScreen> {
+class _CashierHomeScreenState extends State<CashierHomeScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
     context.read<BillingBloc>().add(const BillingCashierHomeLoadRequested());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    context.read<BillingBloc>().add(const BillingCashierHomeLoadRequested());
+    super.didPopNext();
   }
 
   @override
@@ -74,7 +96,7 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> {
                 pendingPayments = state.bills.results
                     .where((b) => b.paymentStatus != PaymentStatusEnum.paid)
                     .toList();
-                readyForBilling = state.readyDeliveries;
+                readyForBilling = state.readyForBilling;
               }
 
               return SingleChildScrollView(
@@ -166,13 +188,13 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> {
                                 return ReadyForBillingCard(
                                   jobNumber: job.jobNumber ?? '',
                                   customerName: job.customerName ?? '',
-                                  vehicleInfo: '${job.vehicleNumber ?? ''} • ${job.serviceType ?? ''}',
+                                  vehicleInfo: '${job.vehicleNumber ?? ''} • ${job.vehicleModel ?? job.serviceType ?? ''}',
                                   onCreateBill: () => AppRouter.toCreateBill(
                                     context,
                                     jobId: job.id,
                                     jobNumber: job.jobNumber ?? '',
                                     vehicleLabel: job.vehicleNumber ?? '',
-                                    vehicleModel: job.serviceType ?? '',
+                                    vehicleModel: job.vehicleModel ?? '',
                                     customerName: job.customerName ?? '',
                                   ),
                                 );

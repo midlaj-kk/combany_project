@@ -12,6 +12,7 @@ class StaffCard extends StatelessWidget {
     required this.phone,
     required this.isActive,
     this.onTap,
+    this.onToggleActive,
   });
 
   final String name;
@@ -20,6 +21,7 @@ class StaffCard extends StatelessWidget {
   final String phone;
   final bool isActive;
   final VoidCallback? onTap;
+  final VoidCallback? onToggleActive;
 
   String get _initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -103,9 +105,37 @@ class StaffCard extends StatelessWidget {
                         : AppColors.statusNeutral,
                   ),
                 ),
-                const SizedBox(height: 14),
-                const Icon(Icons.chevron_right,
-                    color: AppColors.textMuted, size: 18),
+                if (onToggleActive != null) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: onToggleActive,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppColors.statusError.withValues(alpha: 0.12)
+                            : AppColors.limeAccent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        isActive ? 'Deactivate' : 'Activate',
+                        style: TextStyle(
+                          color: isActive
+                              ? AppColors.statusError
+                              : AppColors.limeAccent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 14),
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.textMuted, size: 18),
+                ],
               ],
             ),
           ],

@@ -12,6 +12,16 @@ class JobCreationConfirmationScreen extends StatelessWidget {
 
   final Map<String, dynamic> job;
 
+  String _registeredOn(Map<String, dynamic> job) {
+    final raw = job['created_at'] as String?;
+    if (raw == null || raw.isEmpty) return 'Not available';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return 'Not available';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,11 +130,11 @@ class JobCreationConfirmationScreen extends StatelessWidget {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  Text('ESTIMATED COMPLETION',
+                                  Text('REGISTERED ON',
                                       style: AppTextStyles.caption
                                           .copyWith(letterSpacing: 0.5)),
                                   const SizedBox(height: 2),
-                                  Text('Today, 5:30 PM',
+                                  Text(_registeredOn(job),
                                       style: AppTextStyles.bodyRegular
                                           .copyWith(
                                               fontWeight: FontWeight.bold)),

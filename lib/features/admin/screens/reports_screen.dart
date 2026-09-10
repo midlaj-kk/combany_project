@@ -26,16 +26,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String _topMechanicName = '';
   int _topMechanicJobs = 0;
   String _mostUsedPartName = '';
-  final double _pendingPaymentsTotal = 0;
-  final int _lowStockCount = 0;
+  double _pendingPaymentsTotal = 0;
+  int _lowStockCount = 0;
 
   bool _revenueLoaded = false;
   bool _completedLoaded = false;
   bool _productivityLoaded = false;
   bool _usageLoaded = false;
+  bool _pendingLoaded = false;
+  bool _lowStockLoaded = false;
 
   bool get _allLoaded =>
-      _revenueLoaded && _completedLoaded && _productivityLoaded && _usageLoaded;
+      _revenueLoaded &&
+      _completedLoaded &&
+      _productivityLoaded &&
+      _usageLoaded &&
+      _pendingLoaded &&
+      _lowStockLoaded;
 
   void _handleState(BuildContext context, AdminState state) {
     if (state is AdminMonthlyRevenueLoaded) {
@@ -47,28 +54,41 @@ class _ReportsScreenState extends State<ReportsScreen> {
       });
     } else if (state is AdminCompletedServicesLoaded) {
       setState(() {
-        _completedServices = state.data['total_completed'] ?? 0;
+        _completedServices = state.data['completed_count'] ?? 0;
         _completedLoaded = true;
         _isLoading = !_allLoaded;
       });
     } else if (state is AdminMechanicProductivityLoaded) {
-      final mechanics =
-          state.data['mechanics'] as List<dynamic>? ?? [];
       setState(() {
-        if (mechanics.isNotEmpty) {
-          _topMechanicName = mechanics.first['mechanic_name'] ?? '';
-          _topMechanicJobs = mechanics.first['completed_jobs'] ?? 0;
+        final mechanics = state.data;
+        if (mechanics is List && mechanics.isNotEmpty) {
+          final top = mechanics.first as Map<String, dynamic>;
+          _topMechanicName = (top['name'] ?? '').toString();
+          _topMechanicJobs = (top['jobs_completed'] as num?)?.toInt() ?? 0;
         }
         _productivityLoaded = true;
         _isLoading = !_allLoaded;
       });
     } else if (state is AdminSparePartsUsageLoaded) {
-      final parts = state.data['parts'] as List<dynamic>? ?? [];
       setState(() {
-        if (parts.isNotEmpty) {
-          _mostUsedPartName = parts.first['part_name'] ?? '';
+        final parts = state.data;
+        if (parts is List && parts.isNotEmpty) {
+          final top = parts.first as Map<String, dynamic>;
+          _mostUsedPartName = (top['part__name'] ?? '').toString();
         }
         _usageLoaded = true;
+        _isLoading = !_allLoaded;
+      });
+    } else if (state is AdminPendingPaymentsLoaded) {
+      setState(() {
+        _pendingPaymentsTotal = state.total;
+        _pendingLoaded = true;
+        _isLoading = !_allLoaded;
+      });
+    } else if (state is AdminLowStockLoaded) {
+      setState(() {
+        _lowStockCount = state.count;
+        _lowStockLoaded = true;
         _isLoading = !_allLoaded;
       });
     } else if (state is AdminError) {
@@ -87,12 +107,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _completedLoaded = false;
       _productivityLoaded = false;
       _usageLoaded = false;
+      _pendingLoaded = false;
+      _lowStockLoaded = false;
     });
     context.read<AdminBloc>()
       ..add(const AdminMonthlyRevenueRequested())
       ..add(const AdminCompletedServicesRequested())
       ..add(const AdminMechanicProductivityRequested())
-      ..add(const AdminSparePartsUsageRequested());
+      ..add(const AdminSparePartsUsageRequested())
+      ..add(const AdminPendingPaymentsRequested())
+      ..add(const AdminLowStockRequested());
   }
 
   @override
@@ -102,7 +126,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ..add(const AdminMonthlyRevenueRequested())
         ..add(const AdminCompletedServicesRequested())
         ..add(const AdminMechanicProductivityRequested())
-        ..add(const AdminSparePartsUsageRequested()),
+        ..add(const AdminSparePartsUsageRequested())
+        ..add(const AdminPendingPaymentsRequested())
+        ..add(const AdminLowStockRequested()),
       child: Builder(
         builder: (context) => Scaffold(
           backgroundColor: AppColors.background,

@@ -156,7 +156,13 @@ class QualityCheckCreateRequest {
 
   Map<String, dynamic> toJson() {
     String testDriveEnumToJson(TestDriveEnum e) => e.name;
-    String oilLeakageCheckEnumToJson(OilLeakageCheckEnum e) => e.name;
+    String oilLeakageCheckEnumToJson(OilLeakageCheckEnum e) {
+      return switch (e) {
+        OilLeakageCheckEnum.noIssue => 'no_issue',
+        OilLeakageCheckEnum.issueFound => 'issue_found',
+        OilLeakageCheckEnum.na => 'na',
+      };
+    }
     String overallStatusEnumToJson(OverallStatusEnum e) {
       return switch (e) {
         OverallStatusEnum.reworkRequired => 'rework_required',

@@ -239,13 +239,7 @@ class _CreateBillScreenState extends State<CreateBillScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          _MetaChip(icon: Icons.circle, label: 'DRAFT BILL'),
-                          const SizedBox(width: 10),
-                          const _MetaChip(icon: Icons.inventory_2_outlined, label: '3 items listed'),
-                        ],
-                      ),
+                      _MetaChip(icon: Icons.circle, label: 'DRAFT BILL'),
                       const SizedBox(height: 24),
                       BlocBuilder<BillingBloc, BillingState>(
                         builder: (context, state) {

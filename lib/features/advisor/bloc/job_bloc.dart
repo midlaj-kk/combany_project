@@ -31,6 +31,7 @@ class JobBloc extends Bloc<JobEvent, JobState> {
         assignedMechanic: event.assignedMechanic,
         search: event.search,
         page: event.page,
+        pageSize: event.pageSize,
       );
       emit(JobsLoaded(jobs: jobs));
     } catch (e) {

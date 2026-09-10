@@ -17,6 +17,7 @@ class PaymentMethodSelector extends StatelessWidget {
     ('upi', 'UPI', Icons.qr_code_2),
     ('card', 'Card', Icons.credit_card_outlined),
     ('bank_transfer', 'Bank', Icons.account_balance_outlined),
+    ('online', 'Online', Icons.language),
   ];
 
   @override

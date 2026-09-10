@@ -116,19 +116,19 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     emit(const BillingLoading());
     try {
       PaginatedBillList? bills;
-      List<ReadyJobModel>? deliveries;
+      List<ReadyJobModel>? readyForBilling;
 
       final results = await Future.wait([
         service.getBills(),
-        service.getReadyDeliveries(),
+        service.getReadyForBillingJobs(),
       ]);
 
       bills = results[0] as PaginatedBillList;
-      deliveries = results[1] as List<ReadyJobModel>;
+      readyForBilling = results[1] as List<ReadyJobModel>;
 
       emit(BillingCashierHomeLoaded(
         bills: bills,
-        readyDeliveries: deliveries,
+        readyForBilling: readyForBilling,
       ));
     } catch (e) {
       emit(BillingError(message: e.toString()));

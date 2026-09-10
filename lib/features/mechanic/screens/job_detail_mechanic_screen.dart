@@ -33,6 +33,7 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
   List<PartUsedModel> _partsUsed = [];
 
   bool _isSubmittingQc = false;
+  bool _isStartingWork = false;
   String? _errorMessage;
 
   double get _totalLabour => _workItems.fold(
@@ -76,8 +77,10 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
     } else if (state is JobError) {
       setState(() {
         _errorMessage = state.message;
+        _isStartingWork = false;
       });
     } else if (state is JobUpdated) {
+      _isStartingWork = false;
       _load();
     }
   }
@@ -123,6 +126,13 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
     context
         .read<MechanicBloc>()
         .add(MechanicPartUsedDeleteRequested(id: partUsedId));
+  }
+
+  void _startWork() {
+    setState(() => _isStartingWork = true);
+    context
+        .read<JobBloc>()
+        .add(JobUpdateStatusRequested(jobId: widget.jobId, status: 'in_progress'));
   }
 
   void _sendForQualityCheck() {
@@ -229,7 +239,7 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
                                     style: AppTextStyles.heading3,
                                   ),
                                 ),
-                                StatusBadge(status: job.status?.name ?? ''),
+                                StatusBadge(status: job.status?.toJsonString() ?? ''),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -411,6 +421,30 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
                               ],
                             ),
                             const SizedBox(height: 20),
+
+                            // --- Start work (waiting -> in_progress) ---
+                            if (job.status == ServiceJobStatus.waiting) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isStartingWork ? null : _startWork,
+                                  icon: _isStartingWork
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.black),
+                                        )
+                                      : const Icon(Icons.play_arrow,
+                                          color: Colors.black, size: 18),
+                                  label: Text(_isStartingWork
+                                      ? 'Starting Work...'
+                                      : 'Start Work'),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
 
                             // --- Send for QC ---
                             SizedBox(

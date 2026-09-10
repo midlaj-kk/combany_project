@@ -32,7 +32,7 @@ class StatusBadge extends StatelessWidget {
       case 'pending':
         return (color: AppColors.statusNeutral, label: 'PENDING');
       case 'waiting':
-        return (color: AppColors.amberAccent, label: 'PENDING');
+        return (color: AppColors.amberAccent, label: 'WAITING');
       default:
         return (color: AppColors.statusNeutral, label: status.toUpperCase());
     }

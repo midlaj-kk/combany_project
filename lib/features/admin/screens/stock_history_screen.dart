@@ -233,7 +233,7 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
-                      value: 0.75,
+                      value: _healthRatio(part),
                       minHeight: 6,
                       backgroundColor: AppColors.inputFill,
                       color: AppColors.limeAccent,
@@ -241,7 +241,7 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Stock level is optimal. Next reorder estimated in 12 days.',
+                    _healthLabel(part),
                     style: AppTextStyles.caption,
                   ),
                 ],
@@ -252,17 +252,17 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
               children: [
                 Expanded(
                   child: _InfoCard(
-                    icon: Icons.home_work_outlined,
-                    label: 'LOCATION',
-                    value: 'Rack A-12',
+                    icon: Icons.inventory_2_outlined,
+                    label: 'UNIT',
+                    value: (part?.unit ?? 'N/A').toUpperCase(),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _InfoCard(
-                    icon: Icons.verified_outlined,
-                    label: 'SUPPLIER',
-                    value: 'N/A',
+                    icon: Icons.trending_down_outlined,
+                    label: 'REORDER LEVEL',
+                    value: part?.minimumStock ?? 'N/A',
                   ),
                 ),
               ],
@@ -271,6 +271,20 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
         ),
       ),
     );
+  }
+double _healthRatio(SparePartModel? part) {
+    final stock = double.tryParse(part?.stockQuantity ?? '') ?? 0;
+    final min = double.tryParse(part?.minimumStock ?? '') ?? 0;
+    if (min <= 0) return stock > 0 ? 0.6 : 0;
+    return (stock / (min * 2)).clamp(0.0, 1.0);
+  }
+
+  String _healthLabel(SparePartModel? part) {
+    final stock = double.tryParse(part?.stockQuantity ?? '') ?? 0;
+    final min = double.tryParse(part?.minimumStock ?? '') ?? 0;
+    if (stock <= 0) return 'Out of stock';
+    if (min > 0 && stock <= min) return 'Low stock -- reorder soon';
+    return 'Stock level is healthy';
   }
 }
 

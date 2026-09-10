@@ -32,6 +32,7 @@ class VehicleModel {
   final int kilometers;
   final VehicleStatus? status;
   final int? customer;
+  final String? customerName;
   final String? createdAt;
   final String? updatedAt;
 
@@ -44,6 +45,7 @@ class VehicleModel {
     this.kilometers = 0,
     this.status,
     this.customer,
+    this.customerName,
     this.createdAt,
     this.updatedAt,
   });
@@ -60,6 +62,7 @@ class VehicleModel {
           ? VehicleStatus.fromString(json['status'] as String)
           : null,
       customer: json['customer'] as int?,
+      customerName: json['customer_name'] as String?,
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
     );
@@ -75,6 +78,7 @@ class VehicleModel {
       'kilometers': kilometers,
       'status': status?.toJsonString(),
       'customer': customer,
+      'customer_name': customerName,
       'created_at': createdAt,
       'updated_at': updatedAt,
     };

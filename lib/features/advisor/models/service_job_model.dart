@@ -63,6 +63,7 @@ class ServiceJobModel {
   final String jobNumber;
   final int vehicle;
   final String? vehicleNumber;
+  final String? vehicleModel;
   final String? customerName;
   final String complaint;
   final String serviceType;
@@ -79,6 +80,7 @@ class ServiceJobModel {
     required this.jobNumber,
     required this.vehicle,
     this.vehicleNumber,
+    this.vehicleModel,
     this.customerName,
     required this.complaint,
     required this.serviceType,
@@ -97,6 +99,7 @@ class ServiceJobModel {
       jobNumber: json['job_number'] as String,
       vehicle: json['vehicle'] as int,
       vehicleNumber: json['vehicle_number'] as String?,
+      vehicleModel: json['vehicle_model'] as String?,
       customerName: json['customer_name'] as String?,
       complaint: json['complaint'] as String,
       serviceType: json['service_type'] as String,
@@ -118,6 +121,7 @@ class ServiceJobModel {
       'job_number': jobNumber,
       'vehicle': vehicle,
       'vehicle_number': vehicleNumber,
+      'vehicle_model': vehicleModel,
       'customer_name': customerName,
       'complaint': complaint,
       'service_type': serviceType,

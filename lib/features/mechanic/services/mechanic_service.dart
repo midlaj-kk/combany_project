@@ -20,7 +20,7 @@ class MechanicService {
       final response = await dio.get(ApiEndpoints.works, queryParameters: params);
 
       if (response.statusCode == 200) {
-        return PaginatedServiceWorkList.fromJson(response.data as Map<String, dynamic>);
+        return PaginatedServiceWorkList.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load works (status: ${response.statusCode})');
       }
@@ -37,7 +37,8 @@ class MechanicService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return ServiceWorkModel.fromJson(response.data as Map<String, dynamic>);
+        final body = _unwrap(response.data);
+        return ServiceWorkModel.fromJson(body as Map<String, dynamic>);
       } else {
         throw Exception('Failed to create work (status: ${response.statusCode})');
       }
@@ -73,7 +74,7 @@ class MechanicService {
       final response = await dio.get(ApiEndpoints.partsUsed, queryParameters: params);
 
       if (response.statusCode == 200) {
-        return PaginatedPartUsedList.fromJson(response.data as Map<String, dynamic>);
+        return PaginatedPartUsedList.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load parts used (status: ${response.statusCode})');
       }
@@ -90,9 +91,7 @@ class MechanicService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final data = response.data is Map
-            ? response.data['data']
-            : response.data;
+        final data = _unwrap(response.data);
         return PartUsedModel.fromJson(data as Map<String, dynamic>);
       } else {
         throw Exception('Failed to add part used (status: ${response.statusCode})');
@@ -115,6 +114,17 @@ class MechanicService {
   }
 
   // ── Helper ───────────────────────────────────────────────────────────────
+
+  /// The backend wraps most payloads in {"success":..,"message":..,"data":..}.
+  /// This extracts the actual data, leaving already-unwrapped payloads as is.
+  static dynamic _unwrap(dynamic data) {
+    if (data is Map<String, dynamic> &&
+        data.containsKey('success') &&
+        data.containsKey('data')) {
+      return data['data'];
+    }
+    return data;
+  }
 
   String _getErrorMessage(DioException e) {
     if (e.response != null) {

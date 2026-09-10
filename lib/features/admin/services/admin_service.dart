@@ -9,7 +9,7 @@ class AdminService {
 
   AdminService({required this.dio});
 
-  // ── Users/Staff ──────────────────────────────────────────────────────────
+  // ── Users/Staff ────────────────────────────
 
   Future<PaginatedUserList> getUsers({String? search, int? page, int? pageSize}) async {
     try {
@@ -21,7 +21,7 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.users, queryParameters: params);
 
       if (response.statusCode == 200) {
-        return PaginatedUserList.fromJson(response.data as Map<String, dynamic>);
+        return PaginatedUserList.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load users (status: ${response.statusCode})');
       }
@@ -35,7 +35,7 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.userById(id));
 
       if (response.statusCode == 200) {
-        return UserModel.fromJson(response.data as Map<String, dynamic>);
+        return UserModel.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load user (status: ${response.statusCode})');
       }
@@ -53,7 +53,18 @@ class AdminService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return UserModel.fromJson(response.data as Map<String, dynamic>);
+        final body = _unwrap(response.data);
+        if (body is Map<String, dynamic> && body.containsKey('id')) {
+          return UserModel.fromJson(body);
+        }
+        return UserModel(
+          id: 0,
+          email: request.email,
+          name: request.name,
+          phone: request.phone,
+          role: request.role,
+          specialization: request.specialization,
+        );
       } else {
         throw Exception('Failed to create user (status: ${response.statusCode})');
       }
@@ -67,7 +78,7 @@ class AdminService {
       final response = await dio.patch(ApiEndpoints.userById(id), data: data);
 
       if (response.statusCode == 200) {
-        return UserModel.fromJson(response.data as Map<String, dynamic>);
+        return UserModel.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to update user (status: ${response.statusCode})');
       }
@@ -124,7 +135,7 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.spareParts, queryParameters: params);
 
       if (response.statusCode == 200) {
-        return PaginatedSparePartList.fromJson(response.data as Map<String, dynamic>);
+        return PaginatedSparePartList.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load spare parts (status: ${response.statusCode})');
       }
@@ -138,7 +149,7 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.sparePartById(id));
 
       if (response.statusCode == 200) {
-        return SparePartModel.fromJson(response.data as Map<String, dynamic>);
+        return SparePartModel.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load spare part (status: ${response.statusCode})');
       }
@@ -152,7 +163,15 @@ class AdminService {
       final response = await dio.post(ApiEndpoints.spareParts, data: request.toJson());
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return SparePartModel.fromJson(response.data as Map<String, dynamic>);
+        final body = _unwrap(response.data);
+        if (body is Map<String, dynamic> && body.containsKey('id')) {
+          return SparePartModel.fromJson(body);
+        }
+        return SparePartModel(
+          id: 0,
+          name: request.name,
+          partNumber: request.partNumber,
+        );
       } else {
         throw Exception('Failed to create spare part (status: ${response.statusCode})');
       }
@@ -180,7 +199,10 @@ class AdminService {
     try {
       final response = await dio.post(
         ApiEndpoints.reduceStock(partId),
-        data: {'quantity': quantity},
+        data: {
+          'quantity': quantity,
+          'reason': 'Manual stock reduction by admin',
+        },
       );
 
       if (response.statusCode != 200 && response.statusCode != 201) {
@@ -196,11 +218,8 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.stockHistory(partId));
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = _unwrap(response.data);
         if (data is List) return data;
-        if (data is Map && data.containsKey('results')) {
-          return (data['results'] as List<dynamic>?) ?? [];
-        }
         return [];
       } else {
         throw Exception('Failed to load stock history (status: ${response.statusCode})');
@@ -215,11 +234,8 @@ class AdminService {
       final response = await dio.get(ApiEndpoints.lowStock);
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = _unwrap(response.data);
         if (data is List) return data;
-        if (data is Map && data.containsKey('results')) {
-          return (data['results'] as List<dynamic>?) ?? [];
-        }
         return [];
       } else {
         throw Exception('Failed to load low stock parts (status: ${response.statusCode})');
@@ -236,7 +252,8 @@ class AdminService {
       final response = await dio.post(ApiEndpoints.qualityChecks, data: request.toJson());
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return QualityCheckModel.fromJson(response.data as Map<String, dynamic>);
+        final data = _unwrap(response.data);
+        return QualityCheckModel.fromJson(data as Map<String, dynamic>);
       } else {
         throw Exception('Failed to create quality check (status: ${response.statusCode})');
       }
@@ -268,12 +285,26 @@ class AdminService {
 
   // ── Reports ──────────────────────────────────────────────────────────────
 
+  Map<String, String> _currentMonthRange() {
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    final from = '${now.year}-$month-01';
+    final to =
+        '${now.year}-$month-${now.day.toString().padLeft(2, '0')}';
+    return {'from': from, 'to': to};
+  }
+
   Future<dynamic> getMonthlyRevenue() async {
     try {
-      final response = await dio.get(ApiEndpoints.monthlyRevenue);
+      final now = DateTime.now();
+      final params = {'month': '${now.month}', 'year': '${now.year}'};
+      final response = await dio.get(
+        ApiEndpoints.monthlyRevenue,
+        queryParameters: params,
+      );
 
       if (response.statusCode == 200) {
-        return response.data;
+        return _unwrap(response.data);
       } else {
         throw Exception('Failed to load monthly revenue (status: ${response.statusCode})');
       }
@@ -284,10 +315,14 @@ class AdminService {
 
   Future<dynamic> getCompletedServices() async {
     try {
-      final response = await dio.get(ApiEndpoints.completedServices);
+      final params = _currentMonthRange();
+      final response = await dio.get(
+        ApiEndpoints.completedServices,
+        queryParameters: params,
+      );
 
       if (response.statusCode == 200) {
-        return response.data;
+        return _unwrap(response.data);
       } else {
         throw Exception('Failed to load completed services (status: ${response.statusCode})');
       }
@@ -298,10 +333,14 @@ class AdminService {
 
   Future<dynamic> getMechanicProductivity() async {
     try {
-      final response = await dio.get(ApiEndpoints.mechanicProductivity);
+      final params = _currentMonthRange();
+      final response = await dio.get(
+        ApiEndpoints.mechanicProductivity,
+        queryParameters: params,
+      );
 
       if (response.statusCode == 200) {
-        return response.data;
+        return _unwrap(response.data);
       } else {
         throw Exception('Failed to load mechanic productivity (status: ${response.statusCode})');
       }
@@ -312,13 +351,33 @@ class AdminService {
 
   Future<dynamic> getSparePartsUsage() async {
     try {
-      final response = await dio.get(ApiEndpoints.sparePartsUsage);
+      final params = _currentMonthRange();
+      final response = await dio.get(
+        ApiEndpoints.sparePartsUsage,
+        queryParameters: params,
+      );
 
       if (response.statusCode == 200) {
-        return response.data;
+        return _unwrap(response.data);
       } else {
         throw Exception('Failed to load spare parts usage (status: ${response.statusCode})');
       }
+    } on DioException catch (e) {
+      throw Exception(_getErrorMessage(e));
+    }
+  }
+
+  Future<Map<String, dynamic>> getPendingPayments() async {
+    try {
+      final response = await dio.get(ApiEndpoints.pendingPaymentsSummary);
+
+      if (response.statusCode == 200) {
+        final body = _unwrap(response.data);
+        if (body is Map<String, dynamic>) {
+          return body;
+        }
+      }
+      throw Exception('Failed to load pending payments (status: ${response.statusCode})');
     } on DioException catch (e) {
       throw Exception(_getErrorMessage(e));
     }
@@ -339,6 +398,17 @@ class AdminService {
   }
 
   // ── Helper ───────────────────────────────────────────────────────────────
+
+  /// The backend wraps most payloads in {"success":..,"message":..,"data":..}.
+  /// This extracts the actual data, leaving already-unwrapped payloads as is.
+  static dynamic _unwrap(dynamic data) {
+    if (data is Map<String, dynamic> &&
+        data.containsKey('success') &&
+        data.containsKey('data')) {
+      return data['data'];
+    }
+    return data;
+  }
 
   String _getErrorMessage(DioException e) {
     if (e.response != null) {
@@ -376,7 +446,7 @@ class AdminService {
         case 504:
           return 'Gateway timeout. Please try again later.';
         default:
-          return 'Server error ($statusCode). Please try again.';
+          return 'Server error ($statusCode). Please try again.';  
       }
     }
 

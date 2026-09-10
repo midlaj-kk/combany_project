@@ -27,6 +27,7 @@ class StatusProgressTracker extends StatelessWidget {
         return 2;
       case 'ready_for_bill':
       case 'ready_for_delivery':
+      case 'delivered':
         return 3;
       default:
         return 0;

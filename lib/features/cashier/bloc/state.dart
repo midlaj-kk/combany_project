@@ -57,8 +57,8 @@ class BillingReadyDeliveriesLoaded extends BillingState {
 
 class BillingCashierHomeLoaded extends BillingState {
   final PaginatedBillList bills;
-  final List<ReadyJobModel> readyDeliveries;
-  const BillingCashierHomeLoaded({required this.bills, required this.readyDeliveries});
+  final List<ReadyJobModel> readyForBilling;
+  const BillingCashierHomeLoaded({required this.bills, required this.readyForBilling});
 }
 
 class BillingDeliveredItemsLoaded extends BillingState {

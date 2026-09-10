@@ -6,8 +6,9 @@ import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:auto_care_app/features/cashier/bloc/bloc.dart';
 import 'package:auto_care_app/features/cashier/bloc/event.dart';
 import 'package:auto_care_app/features/cashier/bloc/state.dart';
+import 'package:auto_care_app/core/router/app_router.dart';
+import '../models/bill_model.dart';
 import '../widgets/pending_payment_card.dart';
-import 'record_payment_screen.dart';
 
 class PendingPaymentsScreen extends StatefulWidget {
   const PendingPaymentsScreen({super.key});
@@ -16,7 +17,8 @@ class PendingPaymentsScreen extends StatefulWidget {
   State<PendingPaymentsScreen> createState() => _PendingPaymentsScreenState();
 }
 
-class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
+class _PendingPaymentsScreenState extends State<PendingPaymentsScreen>
+    with RouteAware {
   static const _tabs = [('all', 'All'), ('pending', 'Pending'), ('partial', 'Partial')];
   String _selectedFilter = 'all';
 
@@ -24,6 +26,31 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
   void initState() {
     super.initState();
     context.read<BillingBloc>().add(const BillingBillsLoadRequested());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  void _reload() {
+    context.read<BillingBloc>().add(const BillingBillsLoadRequested());
+  }
+
+  @override
+  void didPopNext() {
+    _reload();
+    super.didPopNext();
   }
 
   @override
@@ -105,7 +132,11 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
                     }
                     final filtered = _selectedFilter == 'all'
                         ? allBills
-                        : allBills.where((b) => b.paymentStatus?.name == _selectedFilter).toList();
+                            .where((b) => b.paymentStatus != PaymentStatusEnum.paid)
+                            .toList()
+                        : allBills
+                            .where((b) => b.paymentStatus?.name == _selectedFilter)
+                            .toList();
                     if (filtered.isEmpty) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -129,9 +160,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
                           paidAmount: double.tryParse(bill.amountPaid ?? '0') ?? 0,
                           paymentStatus: bill.paymentStatus?.name ?? 'pending',
                           onCollectPayment: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => RecordPaymentScreen(billId: bill.id)),
-                            );
+                            AppRouter.toRecordPayment(context, billId: bill.id);
                           },
                         );
                       },

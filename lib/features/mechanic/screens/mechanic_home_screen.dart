@@ -74,7 +74,7 @@ class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
                     .toList()
                 : allJobs
                     .where(
-                        (j) => j.status?.name == _selectedFilter)
+                        (j) => (j.status?.toJsonString() ?? '') == _selectedFilter)
                     .toList();
       });
     } else if (state is JobError) {
@@ -242,7 +242,7 @@ class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
                           vehicleInfo: job.vehicleNumber ?? '',
                           vehicleModel: job.serviceType,
                           complaint: job.complaint,
-                          status: job.status?.name ?? 'waiting',
+                          status: job.status?.toJsonString() ?? 'waiting',
                           timeAgo: _timeAgo(job.createdAt),
                           onTap: () => AppRouter.toJobDetailMechanic(
                             context,

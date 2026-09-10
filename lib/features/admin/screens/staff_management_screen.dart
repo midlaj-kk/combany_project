@@ -64,7 +64,22 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 : null)),
       child: Builder(
         builder: (context) {
-          return Scaffold(
+          return BlocListener<AdminBloc, AdminState>(
+            listener: (context, state) {
+              if (state is AdminUserActionSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message)),
+                );
+                context.read<AdminBloc>().add(
+                      AdminUsersLoadRequested(
+                        search: _searchController.text.trim().isNotEmpty
+                            ? _searchController.text.trim()
+                            : null,
+                      ),
+                    );
+              }
+            },
+            child: Scaffold(
             backgroundColor: AppColors.background,
             body: SafeArea(
               child: Column(
@@ -190,6 +205,15 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                                   email: staff.email,
                                   phone: staff.phone,
                                   isActive: staff.isActive ?? true,
+                                  onToggleActive: () => context
+                                      .read<AdminBloc>()
+                                      .add(
+                                        (staff.isActive ?? true)
+                                            ? AdminUserDeactivateRequested(
+                                                id: staff.id)
+                                            : AdminUserActivateRequested(
+                                                id: staff.id),
+                                      ),
                                 );
                               },
                             );
@@ -214,7 +238,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               ),
               icon: const Icon(Icons.add, color: Colors.black),
             ),
-          );
+          ),
+        );
         },
       ),
     );

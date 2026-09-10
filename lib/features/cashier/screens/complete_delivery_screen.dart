@@ -164,15 +164,8 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('VEHICLE', style: AppTextStyles.caption.copyWith(letterSpacing: 0.5)),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.limeAccent.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Text('PREMIUM',
-                                      style: TextStyle(color: AppColors.limeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                                ),
+                                const Icon(Icons.verified_outlined,
+                                    color: AppColors.limeAccent, size: 18),
                               ],
                             ),
                             const SizedBox(height: 4),

@@ -31,7 +31,7 @@ Future<void> configureDependencies() async {
 
   // Auth
   getIt.registerLazySingleton<AuthService>(
-    () => AuthService(dioClient: getIt(), prefs: getIt()),
+    () => AuthService(dioClient: getIt(), storage: getIt<SharedPreferences>()),
   );
   getIt.registerFactory<AuthBloc>(
     () => AuthBloc(authService: getIt()),
@@ -82,18 +82,25 @@ void _setupAuthInterceptor() {
   final authService = getIt<AuthService>();
 
   AuthInterceptor.getToken = () {
-    return authService.getAccessToken() ?? '';
+    return authService.getAccessToken();
   };
 
   AuthInterceptor.getRefreshToken = () {
-    return authService.getRefreshToken() ?? '';
+    return authService.getRefreshToken();
   };
 
-  AuthInterceptor.setTokens = (String newAccess) async {
-    await authService.saveTokens(
-      access: newAccess,
-      refresh: authService.getRefreshToken() ?? '',
-    );
+  AuthInterceptor.setTokens = (String newAccess, String? newRefresh) async {
+    // prefer the rotated refresh token the backend returned, otherwise keep
+    // the current one (some servers don't rotate).
+    final refresh = newRefresh ?? await authService.getRefreshToken();
+    if (refresh != null && refresh.isNotEmpty) {
+      await authService.saveTokens(
+        access: newAccess,
+        refresh: refresh,
+      );
+    } else {
+      await authService.saveAccessToken(newAccess);
+    }
   };
 
   AuthInterceptor.clearTokens = () async {

@@ -9,11 +9,13 @@ class JobsLoadRequested extends JobEvent {
   final int? assignedMechanic;
   final String? search;
   final int? page;
+  final int? pageSize;
   const JobsLoadRequested({
     this.status,
     this.assignedMechanic,
     this.search,
     this.page,
+    this.pageSize,
   });
 }
 

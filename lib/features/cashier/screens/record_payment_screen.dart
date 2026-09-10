@@ -9,6 +9,7 @@ import 'package:auto_care_app/features/cashier/bloc/event.dart';
 import 'package:auto_care_app/features/cashier/bloc/state.dart';
 import 'package:auto_care_app/features/cashier/models/payment_model.dart';
 import '../widgets/payment_method_selector.dart';
+import '../widgets/razorpay_demo_sheet.dart';
 import 'payment_success_screen.dart';
 
 class RecordPaymentScreen extends StatefulWidget {
@@ -48,20 +49,70 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
   void _confirmPayment() {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     if (amount <= 0) return;
-    final now = _paymentDate;
-    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    if (_selectedMethod == 'online') {
+      _startOnlinePayment(amount);
+      return;
+    }
+
     final method = PaymentMethod.values.firstWhere(
-      (m) => m.name == _selectedMethod,
+      (m) => m.toJson() == _selectedMethod,
       orElse: () => PaymentMethod.cash,
     );
-    context.read<BillingBloc>().add(BillingPaymentCreateRequested(
-      request: PaymentCreateRequest(
-        bill: widget.billId,
-        paidAmount: amount.toStringAsFixed(2),
-        paymentMethod: method,
-        paymentDate: dateStr,
+    _recordPayment(amount, method);
+  }
+
+  /// Runs the DEMO Razorpay checkout sheet, then records the payment only if
+  /// the simulated checkout succeeded. No real money or Razorpay keys are used.
+  Future<void> _startOnlinePayment(double amount) async {
+    final result = await showModalBottomSheet<RazorpayDemoResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-    ));
+      builder: (_) => RazorpayDemoSheet(
+        amount: amount,
+        invoiceNumber: _invoiceNumber ?? '',
+      ),
+    );
+
+    if (!mounted) return;
+    if (result == null || !result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Online payment was not completed. The customer was not charged.'),
+          backgroundColor: AppColors.statusError,
+        ),
+      );
+      return;
+    }
+    _recordPayment(
+      amount,
+      PaymentMethod.online,
+      razorpayPaymentId: result.paymentId,
+    );
+  }
+
+  void _recordPayment(
+    double amount,
+    PaymentMethod method, {
+    String? razorpayPaymentId,
+  }) {
+    final now = _paymentDate;
+    final dateStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    context.read<BillingBloc>().add(BillingPaymentCreateRequested(
+          request: PaymentCreateRequest(
+            bill: widget.billId,
+            paidAmount: amount.toStringAsFixed(2),
+            paymentMethod: method,
+            paymentDate: dateStr,
+            razorpayPaymentId: razorpayPaymentId,
+          ),
+        ));
   }
 
   @override
@@ -105,7 +156,9 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
                     fullyPaid: _fullyPaid,
                     invoiceNumber: _invoiceNumber ?? '',
                     vehicleModel: _jobNumber ?? '',
-                    serviceType: 'Service Payment',
+                    serviceType: _selectedMethod == 'online'
+                        ? 'Online · Razorpay (Demo)'
+                        : 'Service Payment',
                   ),
                 ),
               );
@@ -247,11 +300,15 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
                 BlocBuilder<BillingBloc, BillingState>(
                   builder: (context, state) {
                     return AppButton(
-                      label: 'Confirm Payment',
-                      icon: Icons.check_circle_outline,
-                      isLoading: state is BillingLoading,
-                      onPressed: _confirmPayment,
-                    );
+                          label: _selectedMethod == 'online'
+                              ? 'Pay Online (Demo)'
+                              : 'Confirm Payment',
+                          icon: _selectedMethod == 'online'
+                              ? Icons.language
+                              : Icons.check_circle_outline,
+                          isLoading: state is BillingLoading,
+                          onPressed: _confirmPayment,
+                        );
                   },
                 ),
               ],

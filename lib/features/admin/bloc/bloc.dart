@@ -24,6 +24,8 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<AdminMechanicProductivityRequested>(_onMechanicProductivity);
     on<AdminSparePartsUsageRequested>(_onSparePartsUsage);
     on<AdminDailyRevenueRequested>(_onDailyRevenue);
+    on<AdminPendingPaymentsRequested>(_onPendingPayments);
+    on<AdminLowStockRequested>(_onLowStock);
   }
 
   Future<void> _onLoadUsers(AdminUsersLoadRequested event, Emitter<AdminState> emit) async {
@@ -181,6 +183,28 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     try {
       final data = await service.getDailyRevenue();
       emit(AdminDailyRevenueLoaded(data: data));
+    } catch (e) {
+      emit(AdminError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onPendingPayments(AdminPendingPaymentsRequested event, Emitter<AdminState> emit) async {
+    emit(const AdminLoading());
+    try {
+      final data = await service.getPendingPayments();
+      final count = (data['pending_count'] as num?)?.toInt() ?? 0;
+      final total = (data['pending_total'] as num?)?.toDouble() ?? 0;
+      emit(AdminPendingPaymentsLoaded(count: count, total: total));
+    } catch (e) {
+      emit(AdminError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onLowStock(AdminLowStockRequested event, Emitter<AdminState> emit) async {
+    emit(const AdminLoading());
+    try {
+      final parts = await service.getLowStockParts();
+      emit(AdminLowStockLoaded(count: parts.length));
     } catch (e) {
       emit(AdminError(message: e.toString()));
     }

@@ -49,7 +49,7 @@ class _AdvisorHomeScreenState extends State<AdvisorHomeScreen>
   @override
   void didPopNext() {
     if (!mounted) return;
-    context.read<JobBloc>().add(const JobsLoadRequested());
+    context.read<JobBloc>().add(const JobsLoadRequested(pageSize: 100));
     super.didPopNext();
   }
 
@@ -97,7 +97,7 @@ class _AdvisorHomeScreenState extends State<AdvisorHomeScreen>
             return RefreshIndicator(
               onRefresh: () async {
                 if (!mounted) return;
-                context.read<JobBloc>().add(const JobsLoadRequested());
+                context.read<JobBloc>().add(const JobsLoadRequested(pageSize: 100));
               },
               color: AppColors.limeAccent,
               backgroundColor: AppColors.surface,
@@ -224,8 +224,15 @@ class _AdvisorHomeScreenState extends State<AdvisorHomeScreen>
                     const SizedBox(height: 24),
 
                     // --- Today's Jobs header ---
-                    Text("Today's Jobs", style: AppTextStyles.heading3),
-                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Today's Jobs", style: AppTextStyles.heading3),
+                        Text('${allJobs.length} jobs',
+                            style: AppTextStyles.caption),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
                     // --- Filter tabs ---
                     SizedBox(

@@ -78,6 +78,17 @@ class AdminDailyRevenueLoaded extends AdminState {
   const AdminDailyRevenueLoaded({required this.data});
 }
 
+class AdminPendingPaymentsLoaded extends AdminState {
+  final int count;
+  final double total;
+  const AdminPendingPaymentsLoaded({required this.count, required this.total});
+}
+
+class AdminLowStockLoaded extends AdminState {
+  final int count;
+  const AdminLowStockLoaded({required this.count});
+}
+
 class AdminError extends AdminState {
   final String message;
   const AdminError({required this.message});

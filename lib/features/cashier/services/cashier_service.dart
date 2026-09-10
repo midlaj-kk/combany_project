@@ -22,7 +22,7 @@ class CashierService {
       final response = await dio.get(ApiEndpoints.bills, queryParameters: params);
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = _unwrap(response.data);
         if (data is List) {
           return PaginatedBillList(
             count: data.length,
@@ -45,7 +45,8 @@ class CashierService {
       final response = await dio.get(ApiEndpoints.billById(id));
 
       if (response.statusCode == 200) {
-        return BillModel.fromJson(response.data as Map<String, dynamic>);
+        final data = _unwrap(response.data);
+        return BillModel.fromJson(data as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load bill (status: ${response.statusCode})');
       }
@@ -62,7 +63,20 @@ class CashierService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return BillModel.fromJson(response.data as Map<String, dynamic>);
+        final data = _unwrap(response.data);
+        if (data is Map<String, dynamic> && data.containsKey('id')) {
+          return BillModel.fromJson(data);
+        }
+        // The backend only returns {"success": true, ...} with no data for
+        // the created bill, so rebuild one from the request we just sent.
+        return BillModel(
+          id: 0,
+          serviceJob: request.serviceJob,
+          labourCharge: request.labourCharge,
+          partsCharge: request.partsCharge,
+          tax: request.tax,
+          discount: request.discount,
+        );
       } else {
         throw Exception('Failed to create bill (status: ${response.statusCode})');
       }
@@ -76,7 +90,8 @@ class CashierService {
       final response = await dio.patch(ApiEndpoints.billById(id), data: data);
 
       if (response.statusCode == 200) {
-        return BillModel.fromJson(response.data as Map<String, dynamic>);
+        final body = _unwrap(response.data);
+        return BillModel.fromJson(body as Map<String, dynamic>);
       } else {
         throw Exception('Failed to update bill (status: ${response.statusCode})');
       }
@@ -95,7 +110,17 @@ class CashierService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return PaymentModel.fromJson(response.data as Map<String, dynamic>);
+        // The backend only returns {"success": true, ...} with no data,
+        // so we build the payment from the request we just sent.
+        return PaymentModel(
+          id: 0,
+          paymentMethod: request.paymentMethod,
+          paidAmount: request.paidAmount,
+          paymentDate: request.paymentDate,
+          razorpayPaymentId: request.razorpayPaymentId,
+          bill: request.bill,
+          razorpayOrder: request.razorpayOrder,
+        );
       } else {
         throw Exception('Failed to create payment (status: ${response.statusCode})');
       }
@@ -113,7 +138,7 @@ class CashierService {
       final response = await dio.get(ApiEndpoints.payments, queryParameters: params);
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = _unwrap(response.data);
         if (data is List) {
           return PaginatedPaymentList(
             count: data.length,
@@ -141,7 +166,19 @@ class CashierService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return DeliveryModel.fromJson(response.data as Map<String, dynamic>);
+        final data = _unwrap(response.data);
+        if (data is Map<String, dynamic> && data.containsKey('id')) {
+          return DeliveryModel.fromJson(data);
+        }
+        // The backend only returns {"success": true, ...} with no data for
+        // the created delivery, so rebuild one from the request we sent.
+        return DeliveryModel(
+          id: 0,
+          deliveryDate: request.deliveryDate,
+          customerReceived: request.customerReceived,
+          remarks: request.remarks,
+          serviceJob: request.serviceJob,
+        );
       } else {
         throw Exception('Failed to create delivery (status: ${response.statusCode})');
       }
@@ -155,9 +192,7 @@ class CashierService {
       final response = await dio.get(ApiEndpoints.readyForDelivery);
 
       if (response.statusCode == 200) {
-        final data = response.data is Map
-            ? response.data['data']
-            : response.data;
+        final data = _unwrap(response.data);
         if (data is List) {
           return data
               .map((e) => ReadyJobModel.fromJson(e as Map<String, dynamic>))
@@ -172,14 +207,35 @@ class CashierService {
     }
   }
 
+  Future<List<ReadyJobModel>> getReadyForBillingJobs() async {
+    try {
+      final response = await dio.get(
+        ApiEndpoints.serviceJobs,
+        queryParameters: {'status': 'ready_for_bill'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = _unwrap(response.data);
+        if (data is Map<String, dynamic> && data['results'] is List) {
+          return (data['results'] as List)
+              .map((e) => ReadyJobModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+        return [];
+      } else {
+        throw Exception('Failed to load ready-for-billing jobs (status: ${response.statusCode})');
+      }
+    } on DioException catch (e) {
+      throw Exception(_getErrorMessage(e));
+    }
+  }
+
   Future<List<DeliveryModel>> getDeliveredItems() async {
     try {
       final response = await dio.get(ApiEndpoints.delivered);
 
       if (response.statusCode == 200) {
-        final data = response.data is Map
-            ? response.data['data']
-            : response.data;
+        final data = _unwrap(response.data);
         if (data is List) {
           return data
               .map((e) => DeliveryModel.fromJson(e as Map<String, dynamic>))
@@ -195,6 +251,18 @@ class CashierService {
   }
 
   // ── Helper ───────────────────────────────────────────────────────────────
+
+  /// The backend wraps list/detail payloads in
+  /// {"success":..,"message":..,"data":..}. Some endpoints return the object
+  /// directly. This extracts the actual data in both cases.
+  static dynamic _unwrap(dynamic data) {
+    if (data is Map<String, dynamic> &&
+        data.containsKey('success') &&
+        data.containsKey('data')) {
+      return data['data'];
+    }
+    return data;
+  }
 
   String _getErrorMessage(DioException e) {
     if (e.response != null) {

@@ -47,6 +47,55 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
     setState(() => _showLowStockOnly = lowStockOnly);
   }
 
+  Future<void> _promptStockChange(int partId, String partName, bool isAdd) async {
+    final controller = TextEditingController();
+    final qty = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          '${isAdd ? 'Add' : 'Reduce'} Stock - $partName',
+          style: AppTextStyles.heading3.copyWith(fontSize: 16),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: 'Enter quantity',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Confirm',
+                style: TextStyle(color: AppColors.limeAccent)),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (qty == null || qty.isEmpty) return;
+    final parsed = double.tryParse(qty);
+    if (!mounted) return;
+    if (parsed == null || parsed <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid quantity')),
+      );
+      return;
+    }
+    context.read<AdminBloc>().add(
+          isAdd
+              ? AdminAddStockRequested(partId: partId, quantity: qty)
+              : AdminReduceStockRequested(partId: partId, quantity: qty),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -257,22 +306,12 @@ class _InventoryListScreenState extends State<InventoryListScreen> {
                                             (double.tryParse(part.sellingPrice ?? '0') ?? 0)
                                                 .toStringAsFixed(2),
                                         isLowStock: isLow,
-                                        onAddStock: () => blocContext
-                                                .read<AdminBloc>()
-                                                .add(
-                                                  AdminAddStockRequested(
-                                                    partId: part.id,
-                                                    quantity: '1',
-                                                  ),
-                                                ),
-                                        onReduceStock: () => blocContext
-                                                .read<AdminBloc>()
-                                                .add(
-                                                  AdminReduceStockRequested(
-                                                    partId: part.id,
-                                                    quantity: '1',
-                                                  ),
-                                                ),
+                                        onAddStock: () =>
+                                            _promptStockChange(
+                                                part.id, part.name, true),
+                                        onReduceStock: () =>
+                                            _promptStockChange(
+                                                part.id, part.name, false),
                                         onTap: () =>
                                             AppRouter.toStockHistory(
                                           context,

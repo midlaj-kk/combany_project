@@ -21,6 +21,11 @@ class JobDetailAdvisorScreen extends StatefulWidget {
 class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
   List<Map<String, dynamic>> _mechanics = [];
 
+  // Last successfully loaded job. Used to decide whether a JobError happened
+  // during a mechanic/status action (we already have content on screen) vs a
+  // first load (the body shows the centered error state instead).
+  ServiceJobModel? _cachedJob;
+
   String _selectedTab = 'complaint'; 
 
   @override
@@ -172,10 +177,22 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<JobBloc, JobState>(
-      listenWhen: (prev, curr) => curr is JobMechanicsLoaded,
+      listenWhen: (prev, curr) =>
+          curr is JobMechanicsLoaded ||
+          curr is JobLoaded ||
+          curr is JobUpdated ||
+          curr is JobError,
       listener: (context, state) {
         if (state is JobMechanicsLoaded) {
           setState(() => _mechanics = state.mechanics);
+        } else if (state is JobLoaded || state is JobUpdated) {
+          _cachedJob = (state as dynamic).job as ServiceJobModel;
+        } else if (state is JobError && _cachedJob != null) {
+          // Action (change mechanic / update status) failed while we already
+          // had content on screen: tell the advisor the action did not apply.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
         }
       },
       child: Scaffold(

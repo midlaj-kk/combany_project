@@ -7,11 +7,13 @@ import '../models/auth_models.dart';
 
 class AuthService {
   final Dio _dio;
-  final SharedPreferences _prefs;
+  final SharedPreferences _storage;
 
-  AuthService({required DioClient dioClient, required SharedPreferences prefs})
-      : _dio = dioClient.dio,
-        _prefs = prefs;
+  AuthService({
+    required DioClient dioClient,
+    required SharedPreferences storage,
+  })  : _dio = dioClient.dio,
+        _storage = storage;
 
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
@@ -27,10 +29,10 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final tokenResponse = TokenResponse.fromJson(
-          response.data as Map<String, dynamic>,
+          _unwrap(response.data) as Map<String, dynamic>,
         );
-        await _prefs.setString(_accessTokenKey, tokenResponse.access);
-        await _prefs.setString(_refreshTokenKey, tokenResponse.refresh);
+        await _storage.setString(_accessTokenKey, tokenResponse.access);
+        await _storage.setString(_refreshTokenKey, tokenResponse.refresh);
         return true;
       } else {
         return false;
@@ -44,7 +46,7 @@ class AuthService {
 
   Future<UserModel?> getCurrentUser() async {
     try {
-      final token = _prefs.getString(_accessTokenKey);
+      final token = _storage.getString(_accessTokenKey);
       if (token == null || token.isEmpty) return null;
 
       final response = await _dio.get(
@@ -55,7 +57,9 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        return UserModel.fromJson(response.data as Map<String, dynamic>);
+        return UserModel.fromJson(
+          _unwrap(response.data) as Map<String, dynamic>,
+        );
       } else {
         return null;
       }
@@ -66,28 +70,41 @@ class AuthService {
 
   // ── Token Helpers ────────────────────────────────────────────────────────
 
+  static dynamic _unwrap(dynamic data) {
+    if (data is Map<String, dynamic> &&
+        data.containsKey('success') &&
+        data.containsKey('data')) {
+      return data['data'];
+    }
+    return data;
+  }
+
   Future<bool> isLoggedIn() async {
-    final token = _prefs.getString(_accessTokenKey);
+    final token = _storage.getString(_accessTokenKey);
     return token != null && token.isNotEmpty;
   }
 
-  String? getAccessToken() {
-    return _prefs.getString(_accessTokenKey);
+  Future<String?> getAccessToken() async {
+    return _storage.getString(_accessTokenKey);
   }
 
-  String? getRefreshToken() {
-    return _prefs.getString(_refreshTokenKey);
+  Future<String?> getRefreshToken() async {
+    return _storage.getString(_refreshTokenKey);
   }
 
   Future<void> saveTokens({required String access, required String refresh}) async {
-    await _prefs.setString(_accessTokenKey, access);
-    await _prefs.setString(_refreshTokenKey, refresh);
+    await _storage.setString(_accessTokenKey, access);
+    await _storage.setString(_refreshTokenKey, refresh);
+  }
+
+  Future<void> saveAccessToken(String access) async {
+    await _storage.setString(_accessTokenKey, access);
   }
 
   // ── Logout ───────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
-    final refreshToken = _prefs.getString(_refreshTokenKey);
+    final refreshToken = _storage.getString(_refreshTokenKey);
 
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
@@ -104,7 +121,7 @@ class AuthService {
       }
     }
 
-    await _prefs.remove(_accessTokenKey);
-    await _prefs.remove(_refreshTokenKey);
+    await _storage.remove(_accessTokenKey);
+    await _storage.remove(_refreshTokenKey);
   }
 }

@@ -21,7 +21,7 @@ class AdvisorService {
       final response = await dio.get(ApiEndpoints.customers, queryParameters: params);
 
       if (response.statusCode == 200) {
-        return PaginatedCustomerList.fromJson(response.data as Map<String, dynamic>);
+        return PaginatedCustomerList.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load customers (status: ${response.statusCode})');
       }
@@ -201,7 +201,7 @@ class AdvisorService {
       final response = await dio.get(ApiEndpoints.serviceJobs, queryParameters: params);
 
       if (response.statusCode == 200) {
-        return PaginatedServiceJobList.fromJson(response.data as Map<String, dynamic>);
+        return PaginatedServiceJobList.fromJson(_unwrap(response.data) as Map<String, dynamic>);
       } else {
         throw Exception('Failed to load service jobs (status: ${response.statusCode})');
       }
