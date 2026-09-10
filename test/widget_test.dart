@@ -57,4 +57,34 @@ void main() {
     expect(prefs.getString('access_token'), isNull);
     expect(prefs.getString('refresh_token'), isNull);
   });
+
+  test('a leftover token without a confirmed login does not count', () async {
+    final authService = getIt<AuthService>();
+    final prefs = getIt<SharedPreferences>();
+
+    await prefs.setString('access_token', 'orphan-token');
+
+    expect(await authService.isLoggedIn(), isFalse);
+  });
+
+  test('tokens, role and login state are stored and cleared together', () async {
+    final authService = getIt<AuthService>();
+    final prefs = getIt<SharedPreferences>();
+
+    await prefs.setString('access_token', 'access');
+    await prefs.setString('refresh_token', 'refresh');
+    await prefs.setString('user_role', 'admin');
+    await prefs.setBool('is_logged_in', true);
+
+    expect(await authService.isLoggedIn(), isTrue);
+    expect(await authService.getUserRole(), 'admin');
+
+    await authService.logout();
+
+    expect(await authService.isLoggedIn(), isFalse);
+    expect(prefs.getKeys(), isNot(contains('access_token')));
+    expect(prefs.getKeys(), isNot(contains('refresh_token')));
+    expect(prefs.getKeys(), isNot(contains('user_role')));
+    expect(prefs.getKeys(), isNot(contains('is_logged_in')));
+  });
 }

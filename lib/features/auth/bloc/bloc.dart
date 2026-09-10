@@ -17,19 +17,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLogin(AuthLoginRequested event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
-      final success = await authService.login(
+      final user = await authService.login(
         email: event.email,
         password: event.password,
       );
-      if (!success) {
-        emit(const AuthError(message: 'Login failed. Please check your credentials.'));
-        return;
-      }
-      final user = await authService.getCurrentUser();
       if (user != null) {
         emit(AuthAuthenticated(user: user));
       } else {
-        emit(const AuthError(message: 'Failed to load user data.'));
+        emit(const AuthError(message: 'Login failed. Please check your credentials.'));
       }
     } catch (e) {
       emit(AuthError(message: e.toString()));
@@ -43,15 +38,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onCheckStatus(AuthCheckStatus event, Emitter<AuthState> emit) async {
-    final isLoggedIn = await authService.isLoggedIn();
-    if (!isLoggedIn) {
+    // Only a session we explicitly marked as logged-in with a stored access
+    // token is considered. Stale keys (e.g. a leftover token) do not count.
+    if (!await authService.isLoggedIn()) {
+      if (await authService.getAccessToken() != null) {
+        // There is a leftover token but no confirmed session; wipe it so a
+        // restart can never be mistaken for a logged-in user.
+        await authService.clearLocalSession();
+      }
       emit(const AuthUnauthenticated());
       return;
     }
+
+    // Re-validate the stored session against the server. An expired or
+    // blacklisted session is cleared and the user is sent to the login screen.
     final user = await authService.getCurrentUser();
     if (user != null) {
       emit(AuthAuthenticated(user: user));
     } else {
+      await authService.clearLocalSession();
       emit(const AuthUnauthenticated());
     }
   }

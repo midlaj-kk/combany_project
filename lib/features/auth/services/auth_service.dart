@@ -17,28 +17,42 @@ class AuthService {
 
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
+  static const _userRoleKey = 'user_role';
+  static const _isLoggedInKey = 'is_logged_in';
 
   // ── Login ────────────────────────────────────────────────────────────────
+  //
+  // Logging in is atomic: if we get tokens from the server we also confirm
+  // the current user (so the session is valid) and only then persist the
+  // role + logged-in flag. A partial login (tokens without a confirmable
+  // user) is discarded so a broken session can never survive a restart.
 
-  Future<bool> login({required String email, required String password}) async {
+  Future<UserModel?> login({required String email, required String password}) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.login,
         data: {'email': email, 'password': password},
       );
 
-      if (response.statusCode == 200) {
-        final tokenResponse = TokenResponse.fromJson(
-          _unwrap(response.data) as Map<String, dynamic>,
-        );
-        await _storage.setString(_accessTokenKey, tokenResponse.access);
-        await _storage.setString(_refreshTokenKey, tokenResponse.refresh);
-        return true;
-      } else {
-        return false;
+      if (response.statusCode != 200) return null;
+
+      final tokenResponse = TokenResponse.fromJson(
+        _unwrap(response.data) as Map<String, dynamic>,
+      );
+      await _storage.setString(_accessTokenKey, tokenResponse.access);
+      await _storage.setString(_refreshTokenKey, tokenResponse.refresh);
+
+      final user = await getCurrentUser();
+      if (user == null) {
+        await clearLocalSession();
+        return null;
       }
-    } on DioException {
-      return false;
+
+      await _persistSessionUser(user);
+      return user;
+    } catch (_) {
+      await clearLocalSession();
+      return null;
     }
   }
 
@@ -57,15 +71,40 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        return UserModel.fromJson(
+        final user = UserModel.fromJson(
           _unwrap(response.data) as Map<String, dynamic>,
         );
+        await _persistSessionUser(user);
+        return user;
       } else {
         return null;
       }
     } on DioException {
       return null;
     }
+  }
+
+  // ── Session Persistence ──────────────────────────────────────────────────
+
+  /// Stores the role + logged-in flag alongside the tokens already saved.
+  Future<void> _persistSessionUser(UserModel user) async {
+    await _storage.setString(_userRoleKey, _userRoleToStored(user.role));
+    await _storage.setBool(_isLoggedInKey, true);
+  }
+
+  static String _userRoleToStored(UserRole role) {
+    return switch (role) {
+      UserRole.serviceAdvisor => 'service_advisor',
+      _ => role.name,
+    };
+  }
+
+  /// Removes every session key so a stale login can never survive a restart.
+  Future<void> clearLocalSession() async {
+    await _storage.remove(_accessTokenKey);
+    await _storage.remove(_refreshTokenKey);
+    await _storage.remove(_userRoleKey);
+    await _storage.remove(_isLoggedInKey);
   }
 
   // ── Token Helpers ────────────────────────────────────────────────────────
@@ -80,8 +119,9 @@ class AuthService {
   }
 
   Future<bool> isLoggedIn() async {
+    final loggedIn = _storage.getBool(_isLoggedInKey) ?? false;
     final token = _storage.getString(_accessTokenKey);
-    return token != null && token.isNotEmpty;
+    return loggedIn && token != null && token.isNotEmpty;
   }
 
   Future<String?> getAccessToken() async {
@@ -92,13 +132,19 @@ class AuthService {
     return _storage.getString(_refreshTokenKey);
   }
 
+  Future<String?> getUserRole() async {
+    return _storage.getString(_userRoleKey);
+  }
+
   Future<void> saveTokens({required String access, required String refresh}) async {
     await _storage.setString(_accessTokenKey, access);
     await _storage.setString(_refreshTokenKey, refresh);
+    await _storage.setBool(_isLoggedInKey, true);
   }
 
   Future<void> saveAccessToken(String access) async {
     await _storage.setString(_accessTokenKey, access);
+    await _storage.setBool(_isLoggedInKey, true);
   }
 
   // ── Logout ───────────────────────────────────────────────────────────────
@@ -121,7 +167,7 @@ class AuthService {
       }
     }
 
-    await _storage.remove(_accessTokenKey);
-    await _storage.remove(_refreshTokenKey);
+    await _storage.setBool(_isLoggedInKey, false);
+    await clearLocalSession();
   }
 }

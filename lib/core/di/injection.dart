@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../network/dio_client.dart';
 import '../../features/auth/services/auth_service.dart';
 import '../../features/auth/bloc/bloc.dart';
+import '../../features/auth/bloc/event.dart';
 
 import '../../features/admin/services/admin_service.dart';
 import '../../features/admin/bloc/bloc.dart';
@@ -33,7 +34,9 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<AuthService>(
     () => AuthService(dioClient: getIt(), storage: getIt<SharedPreferences>()),
   );
-  getIt.registerFactory<AuthBloc>(
+  // Registered as a singleton so AuthService / interceptors can reach the
+  // exact same instance the widget tree uses (needed to push logout events).
+  getIt.registerLazySingleton<AuthBloc>(
     () => AuthBloc(authService: getIt()),
   );
 
@@ -105,5 +108,8 @@ void _setupAuthInterceptor() {
 
   AuthInterceptor.clearTokens = () async {
     await authService.logout();
+    // Tell the auth bloc so the UI can redirect to the login screen when a
+    // session dies mid-use (e.g. failed refresh = expired refresh token).
+    getIt<AuthBloc>().add(const AuthLogoutRequested());
   };
 }

@@ -40,6 +40,10 @@ class AppRouter {
   /// refresh their data when a pushed screen above them is popped.
   static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
+  /// Global navigator key so navigation can be triggered outside the widget
+  /// tree (e.g. from the auth bloc / token interceptor).
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   static void afterLogin(BuildContext context, UserRole role) {
     resetToRoleHome(context, _homeForRole(role));
   }
@@ -111,6 +115,17 @@ class AppRouter {
     } else {
       _push(context, const LoginScreen());
     }
+  }
+
+  /// Resets the whole stack to the login screen using the global navigator
+  /// (used when a live session ends and there is no on-screen context).
+  static void navigateToLogin() {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   // ── Admin ─────────────────────────────────────────────────────

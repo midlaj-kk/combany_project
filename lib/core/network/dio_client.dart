@@ -63,8 +63,14 @@ class AuthInterceptor extends Interceptor {
     // itself failed, otherwise it would loop forever.
     final isRefreshRequest = err.requestOptions.path.contains('/auth/refresh/');
 
+    // never refresh twice for the same request, or a genuinely forbidden
+    // request would keep spinning the refresh logic forever.
+    final alreadyRetried = err.requestOptions.extra['auth_retried'] == true;
+
     // only try to refresh when we got a 401 and it's not the refresh call.
-    if (!isRefreshRequest && err.response?.statusCode == 401) {
+    if (!isRefreshRequest &&
+        !alreadyRetried &&
+        err.response?.statusCode == 401) {
       final refreshToken = await getRefreshToken?.call();
 
       if (refreshToken != null && refreshToken.isNotEmpty) {
@@ -92,10 +98,20 @@ class AuthInterceptor extends Interceptor {
             // save the new tokens so the next requests use them.
             await setTokens?.call(newAccess, newRefresh);
 
-            // put the new token on the original request and retry it.
+            // put the new token on the original request and retry it once.
             err.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
+            err.requestOptions.extra['auth_retried'] = true;
             final retried = await _dio.fetch(err.requestOptions);
-            return handler.resolve(retried);
+
+            if (retried.statusCode == 401) {
+              // the retry still failed => the session is no longer valid.
+              await clearTokens?.call();
+            } else {
+              return handler.resolve(retried);
+            }
+          } else {
+            // refresh succeeded but no usable token came back.
+            await clearTokens?.call();
           }
         } catch (_) {
           // the refresh failed, so log the user out.
