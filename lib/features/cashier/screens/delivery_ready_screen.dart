@@ -8,6 +8,7 @@ import 'package:auto_care_app/features/cashier/bloc/bloc.dart';
 import 'package:auto_care_app/features/cashier/bloc/event.dart';
 import 'package:auto_care_app/features/cashier/bloc/state.dart';
 import '../widgets/delivery_ready_card.dart';
+import '../models/ready_job_model.dart';
 
 class DeliveryReadyScreen extends StatefulWidget {
   const DeliveryReadyScreen({super.key});
@@ -41,7 +42,7 @@ class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> with RouteAwa
     super.didPopNext();
   }
 
-  List<dynamic> _filteredList(List<dynamic> vehicles) {
+  List<ReadyJobModel> _filteredList(List<ReadyJobModel> vehicles) {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return vehicles;
     return vehicles.where((v) {
@@ -117,7 +118,7 @@ class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> with RouteAwa
                         ],
                       );
                     }
-                    List<dynamic> vehicles = [];
+                    List<ReadyJobModel> vehicles = [];
                     if (state is BillingReadyDeliveriesLoaded) {
                       vehicles = state.deliveries;
                     }
@@ -164,7 +165,7 @@ class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> with RouteAwa
           ],
         ),
       ),
-      bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
+      bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 1),
     );
   }
 }

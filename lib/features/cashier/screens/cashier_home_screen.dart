@@ -7,9 +7,7 @@ import 'package:auto_care_app/widgets/common/role_bottom_nav.dart';
 import 'package:auto_care_app/features/cashier/bloc/bloc.dart';
 import 'package:auto_care_app/features/cashier/bloc/event.dart';
 import 'package:auto_care_app/features/cashier/bloc/state.dart';
-import 'package:auto_care_app/features/cashier/models/bill_model.dart';
 import 'package:auto_care_app/features/cashier/models/ready_job_model.dart';
-import '../widgets/pending_payment_tile.dart';
 import '../widgets/ready_for_billing_card.dart';
 
 class CashierHomeScreen extends StatefulWidget {
@@ -90,14 +88,12 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> with RouteAware {
                 );
               }
 
-              List<BillModel> pendingPayments = [];
               List<ReadyJobModel> readyForBilling = [];
+              List<ReadyJobModel> readyForDelivery = [];
 
               if (state is BillingCashierHomeLoaded) {
-                pendingPayments = state.bills.results
-                    .where((b) => b.paymentStatus != PaymentStatusEnum.paid)
-                    .toList();
                 readyForBilling = state.readyForBilling;
+                readyForDelivery = state.readyForDelivery;
               }
 
               return SingleChildScrollView(
@@ -144,15 +140,15 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> with RouteAware {
                             value: readyForBilling.length.toString(),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _StatCard(
-                            label: 'PENDING\nPAYMENTS',
-                            value: pendingPayments.length.toString(),
-                            valueColor: AppColors.amberAccent,
+                            label: 'READY FOR\nDELIVERY',
+                            value: readyForDelivery.length.toString(),
+                            valueColor: AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _StatCard(
                             label: 'TOTAL\nBILLS',
@@ -204,44 +200,12 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> with RouteAware {
                               },
                             ),
                           ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Pending Payments', style: AppTextStyles.heading3),
-                        TextButton(
-                          onPressed: () => AppRouter.toPendingPayments(context),
-                          child: const Text('SEE ALL',
-                              style: TextStyle(color: AppColors.limeAccent)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    pendingPayments.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text('No pending payments',
-                                style: AppTextStyles.bodySecondary),
-                          )
-                        : Column(
-                            children: pendingPayments.map((bill) {
-                              return PendingPaymentTile(
-                                customerName: bill.customerName ?? '',
-                                invoiceNumber: bill.invoiceNumber ?? '',
-                                amount: (double.tryParse(bill.totalAmount ?? '0') ?? 0).toStringAsFixed(0),
-                                paymentStatus: bill.paymentStatus?.name ?? 'pending',
-                                onTap: () => AppRouter.toRecordPayment(
-                                  context,
-                                  billId: bill.id,
-                                ),
-                              );
-                            }).toList(),
-                          ),
+const SizedBox(height: 24),
                   ],
                 ),
               );
-            },
-          ),
+              },
+            ),
         ),
       ),
       bottomNavigationBar: const RoleBottomNav(role: 'cashier'),

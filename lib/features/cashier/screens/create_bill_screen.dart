@@ -92,7 +92,6 @@ class _CreateBillScreenState extends State<CreateBillScreen> {
                 invoiceNumber: state.bill.invoiceNumber ?? '',
                 serviceEntity: widget.vehicleModel,
                 totalAmount: double.tryParse(state.bill.totalAmount ?? '0') ?? 0,
-                billId: state.bill.id,
               ),
             ),
           );

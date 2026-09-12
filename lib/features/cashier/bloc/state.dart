@@ -1,5 +1,4 @@
 import '../models/bill_model.dart';
-import '../models/payment_model.dart';
 import '../models/delivery_model.dart';
 import '../models/ready_job_model.dart';
 
@@ -35,16 +34,6 @@ class BillingBillUpdated extends BillingState {
   const BillingBillUpdated({required this.bill});
 }
 
-class BillingPaymentCreated extends BillingState {
-  final PaymentModel payment;
-  const BillingPaymentCreated({required this.payment});
-}
-
-class BillingPaymentsLoaded extends BillingState {
-  final List<PaymentModel> payments;
-  const BillingPaymentsLoaded({required this.payments});
-}
-
 class BillingDeliveryCreated extends BillingState {
   final DeliveryModel delivery;
   const BillingDeliveryCreated({required this.delivery});
@@ -58,7 +47,12 @@ class BillingReadyDeliveriesLoaded extends BillingState {
 class BillingCashierHomeLoaded extends BillingState {
   final PaginatedBillList bills;
   final List<ReadyJobModel> readyForBilling;
-  const BillingCashierHomeLoaded({required this.bills, required this.readyForBilling});
+  final List<ReadyJobModel> readyForDelivery;
+  const BillingCashierHomeLoaded({
+    required this.bills,
+    required this.readyForBilling,
+    this.readyForDelivery = const [],
+  });
 }
 
 class BillingDeliveredItemsLoaded extends BillingState {

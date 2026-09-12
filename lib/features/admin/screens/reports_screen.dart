@@ -291,9 +291,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               subtitle: 'action needed',
                               valueColor:
                                   AppColors.amberAccent,
-                              onTap: () => AppRouter
-                                  .toPendingPayments(
-                                      context),
                             ),
                             ReportCard(
                               icon: Icons

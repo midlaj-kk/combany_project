@@ -14,8 +14,6 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     on<BillingBillLoadRequested>(_onLoadBill);
     on<BillingBillCreateRequested>(_onCreateBill);
     on<BillingBillUpdateRequested>(_onUpdateBill);
-    on<BillingPaymentCreateRequested>(_onCreatePayment);
-    on<BillingPaymentsLoadRequested>(_onLoadPayments);
     on<BillingDeliveryCreateRequested>(_onCreateDelivery);
     on<BillingReadyDeliveriesLoadRequested>(_onLoadReadyDeliveries);
     on<BillingDeliveredItemsLoadRequested>(_onLoadDeliveredItems);
@@ -62,26 +60,6 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     }
   }
 
-  Future<void> _onCreatePayment(BillingPaymentCreateRequested event, Emitter<BillingState> emit) async {
-    emit(const BillingLoading());
-    try {
-      final payment = await service.createPayment(event.request);
-      emit(BillingPaymentCreated(payment: payment));
-    } catch (e) {
-      emit(BillingError(message: e.toString()));
-    }
-  }
-
-  Future<void> _onLoadPayments(BillingPaymentsLoadRequested event, Emitter<BillingState> emit) async {
-    emit(const BillingLoading());
-    try {
-      final result = await service.getPayments(page: event.page);
-      emit(BillingPaymentsLoaded(payments: result.results));
-    } catch (e) {
-      emit(BillingError(message: e.toString()));
-    }
-  }
-
   Future<void> _onCreateDelivery(BillingDeliveryCreateRequested event, Emitter<BillingState> emit) async {
     emit(const BillingLoading());
     try {
@@ -115,20 +93,22 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
   Future<void> _onLoadCashierHome(BillingCashierHomeLoadRequested event, Emitter<BillingState> emit) async {
     emit(const BillingLoading());
     try {
-      PaginatedBillList? bills;
-      List<ReadyJobModel>? readyForBilling;
-
       final results = await Future.wait([
         service.getBills(),
         service.getReadyForBillingJobs(),
+        service.getReadyDeliveries(),
       ]);
 
-      bills = results[0] as PaginatedBillList;
-      readyForBilling = results[1] as List<ReadyJobModel>;
+      final bills = results[0] as PaginatedBillList;
+      final readyForBilling = (results[1] as List<ReadyJobModel>)
+          .where((job) => !job.hasBill)
+          .toList();
+      final readyForDelivery = results[2] as List<ReadyJobModel>;
 
       emit(BillingCashierHomeLoaded(
         bills: bills,
         readyForBilling: readyForBilling,
+        readyForDelivery: readyForDelivery,
       ));
     } catch (e) {
       emit(BillingError(message: e.toString()));

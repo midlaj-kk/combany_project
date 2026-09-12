@@ -74,10 +74,6 @@ class RoleBottomNav extends StatelessWidget {
             onTap: () => AppRouter.resetToCashierHome(context),
           ),
           _RoleNavItemData(
-            icon: Icons.receipt_outlined,
-            onTap: () => AppRouter.toPendingPayments(context),
-          ),
-          _RoleNavItemData(
             icon: Icons.directions_car_outlined,
             onTap: () => AppRouter.toDeliveryReady(context),
           ),

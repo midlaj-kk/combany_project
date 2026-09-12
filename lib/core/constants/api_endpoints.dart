@@ -59,11 +59,6 @@ class ApiEndpoints {
   static const String bills = '$_v1/bills/';
   static String billById(int id) => '$_v1/bills/$id/';
 
-  // Payments
-  static const String payments = '$_v1/payments/';
-  static String paymentById(int id) => '$_v1/payments/$id/';
-  static const String pendingPayments = '$_v1/payments/pending/';
-
   // Mechanics
   static const String mechanics = '$_v1/mechanics/';
 

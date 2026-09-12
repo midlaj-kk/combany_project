@@ -25,8 +25,6 @@ import '../../features/cashier/screens/cashier_home_screen.dart';
 import '../../features/cashier/screens/create_bill_screen.dart';
 import '../../features/cashier/screens/delivery_ready_screen.dart';
 import '../../features/cashier/screens/complete_delivery_screen.dart';
-import '../../features/cashier/screens/pending_payments_screen.dart';
-import '../../features/cashier/screens/record_payment_screen.dart';
 import '../../features/mechanic/bloc/bloc.dart';
 import '../../features/mechanic/screens/job_detail_mechanic_screen.dart';
 import '../../features/mechanic/screens/mechanic_home_screen.dart';
@@ -284,16 +282,6 @@ class AppRouter {
 
   // ── Cashier ───────────────────────────────────────────────────
 
-  static void toPendingPayments(BuildContext context) {
-    _push(
-      context,
-      BlocProvider(
-        create: (_) => getIt<BillingBloc>(),
-        child: const PendingPaymentsScreen(),
-      ),
-    );
-  }
-
   static void toDeliveryReady(BuildContext context) {
     _push(
       context,
@@ -327,16 +315,6 @@ class AppRouter {
           initialLabourCharge: initialLabourCharge,
           initialPartsCharge: initialPartsCharge,
         ),
-      ),
-    );
-  }
-
-  static void toRecordPayment(BuildContext context, {required int billId}) {
-    _push(
-      context,
-      BlocProvider(
-        create: (_) => getIt<BillingBloc>(),
-        child: RecordPaymentScreen(billId: billId),
       ),
     );
   }

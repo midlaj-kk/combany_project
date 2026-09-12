@@ -131,7 +131,7 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
                   ),
                 ),
               ),
-              bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
+              bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 1),
             )
           : Scaffold(
               backgroundColor: AppColors.background,
@@ -290,7 +290,7 @@ class _CompleteDeliveryScreenState extends State<CompleteDeliveryScreen> {
                   ),
                 ),
               ),
-              bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 2),
+              bottomNavigationBar: const RoleBottomNav(role: 'cashier', activeIndex: 1),
             ),
     );
   }

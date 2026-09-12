@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/common/animated_checkmark.dart';
@@ -12,13 +11,11 @@ class InvoiceSuccessScreen extends StatelessWidget {
     required this.invoiceNumber,
     required this.serviceEntity,
     required this.totalAmount,
-    required this.billId,
   });
 
   final String invoiceNumber;
   final String serviceEntity;
   final double totalAmount;
-  final int billId;
 
   @override
   Widget build(BuildContext context) {
@@ -99,18 +96,6 @@ class InvoiceSuccessScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => AppRouter.toRecordPayment(
-                          context,
-                          billId: billId,
-                        ),
-                        child: const Text('Record Payment'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -142,7 +127,7 @@ class InvoiceSuccessScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar:
-          const RoleBottomNav(role: 'cashier', activeIndex: 2),
+          const RoleBottomNav(role: 'cashier', activeIndex: 0),
     );
   }
 }

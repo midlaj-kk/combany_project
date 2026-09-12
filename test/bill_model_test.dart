@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:auto_care_app/features/cashier/models/bill_model.dart';
-import 'package:auto_care_app/features/cashier/models/payment_model.dart';
 
 void main() {
   group('BillModel.fromJson', () {
@@ -87,34 +86,5 @@ void main() {
     expect(page.results, hasLength(1));
     expect(page.results.first.amountPaid, '0.0');
     expect(page.results.first.customerName, 'Test Customer');
-  });
-
-  group('PaymentModel.fromJson', () {
-    test('parses paid_amount arriving as a double', () {
-      final payment = PaymentModel.fromJson({
-        'id': 1,
-        'payment_method': 'cash',
-        'paid_amount': 300.0,
-        'payment_date': '2026-09-12',
-        'bill': 2,
-      });
-
-      expect(payment.paymentMethod, PaymentMethod.cash);
-      expect(payment.paidAmount, '300.0');
-      expect(payment.bill, 2);
-    });
-
-    test('parses paid_amount arriving as a string', () {
-      final payment = PaymentModel.fromJson({
-        'id': 1,
-        'payment_method': 'upi',
-        'paid_amount': '300.00',
-        'payment_date': '2026-09-12',
-        'bill': 2,
-      });
-
-      expect(payment.paymentMethod, PaymentMethod.upi);
-      expect(payment.paidAmount, '300.00');
-    });
   });
 }

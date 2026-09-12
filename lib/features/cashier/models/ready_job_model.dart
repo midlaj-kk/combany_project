@@ -9,6 +9,7 @@ class ReadyJobModel {
   final String? customerPhone;
   final double labourCharge;
   final double partsCharge;
+  final bool hasBill;
 
   const ReadyJobModel({
     required this.id,
@@ -20,6 +21,7 @@ class ReadyJobModel {
     this.customerPhone,
     this.labourCharge = 0,
     this.partsCharge = 0,
+    this.hasBill = false,
   });
 
   factory ReadyJobModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class ReadyJobModel {
       customerPhone: json['customer_phone'] as String?,
       labourCharge: _toDouble(json['labour_charge']),
       partsCharge: _toDouble(json['parts_charge']),
+      hasBill: json['has_bill'] == true,
     );
   }
 

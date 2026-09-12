@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../models/bill_model.dart';
-import '../models/payment_model.dart';
 import '../models/delivery_model.dart';
 import '../models/ready_job_model.dart';
 
@@ -94,62 +93,6 @@ class CashierService {
         return BillModel.fromJson(body as Map<String, dynamic>);
       } else {
         throw Exception('Failed to update bill (status: ${response.statusCode})');
-      }
-    } on DioException catch (e) {
-      throw Exception(_getErrorMessage(e));
-    }
-  }
-
-  // ── Payments ─────────────────────────────────────────────────────────────
-
-  Future<PaymentModel> createPayment(PaymentCreateRequest request) async {
-    try {
-      final response = await dio.post(
-        ApiEndpoints.payments,
-        data: request.toJson(),
-      );
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        // The backend only returns {"success": true, ...} with no data,
-        // so we build the payment from the request we just sent.
-        return PaymentModel(
-          id: 0,
-          paymentMethod: request.paymentMethod,
-          paidAmount: request.paidAmount,
-          paymentDate: request.paymentDate,
-          razorpayPaymentId: request.razorpayPaymentId,
-          bill: request.bill,
-          razorpayOrder: request.razorpayOrder,
-        );
-      } else {
-        throw Exception('Failed to create payment (status: ${response.statusCode})');
-      }
-    } on DioException catch (e) {
-      throw Exception(_getErrorMessage(e));
-    }
-  }
-
-  Future<PaginatedPaymentList> getPayments({int? page, int? pageSize}) async {
-    try {
-      final params = <String, dynamic>{};
-      if (page != null) params['page'] = page;
-      if (pageSize != null) params['page_size'] = pageSize;
-
-      final response = await dio.get(ApiEndpoints.payments, queryParameters: params);
-
-      if (response.statusCode == 200) {
-        final data = _unwrap(response.data);
-        if (data is List) {
-          return PaginatedPaymentList(
-            count: data.length,
-            results: data
-                .map((e) => PaymentModel.fromJson(e as Map<String, dynamic>))
-                .toList(),
-          );
-        }
-        return PaginatedPaymentList.fromJson(data as Map<String, dynamic>);
-      } else {
-        throw Exception('Failed to load payments (status: ${response.statusCode})');
       }
     } on DioException catch (e) {
       throw Exception(_getErrorMessage(e));

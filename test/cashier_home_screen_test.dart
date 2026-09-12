@@ -75,6 +75,19 @@ class _FakeCashierService extends CashierService {
       }),
     ];
   }
+
+  @override
+  Future<List<ReadyJobModel>> getReadyDeliveries() async {
+    return [
+      ReadyJobModel.fromJson({
+        'id': 90,
+        'job_number': 'SJ-90',
+        'customer_name': 'Biju',
+        'vehicle_number': 'KL 05 IJ 5005',
+        'service_type': 'Full Service',
+      }),
+    ];
+  }
 }
 
 void main() {
@@ -96,10 +109,13 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Cashier - Home'), findsOneWidget);
     expect(find.text('READY FOR\nBILLING'), findsOneWidget);
-    expect(find.text('PENDING\nPAYMENTS'), findsOneWidget);
-    expect(find.text('Aashique'), findsOneWidget);
-    expect(find.text('Irfan'), findsOneWidget);
-    expect(find.text('Suhail'), findsNothing);
-    expect(find.text('No pending payments'), findsNothing);
+    expect(find.text('READY FOR\nDELIVERY'), findsOneWidget);
+    expect(find.text('TOTAL\nBILLS'), findsOneWidget);
+    expect(find.text('Ready for Billing'), findsOneWidget);
+    expect(
+      find.text('Biju'),
+      findsNothing,
+      reason: 'Biju is only a delivery job, not shown on the home list.',
+    );
   });
 }
