@@ -21,9 +21,10 @@ class JobDetailAdvisorScreen extends StatefulWidget {
 class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
   List<Map<String, dynamic>> _mechanics = [];
 
-  // Last successfully loaded job. Used to decide whether a JobError happened
-  // during a mechanic/status action (we already have content on screen) vs a
-  // first load (the body shows the centered error state instead).
+  // Last successfully loaded job. Used to keep the job data on screen while
+  // helper states (JobLoading / JobMechanicsLoaded / JobInitial) are active,
+  // and to decide whether a JobError happened during a mechanic/status action
+  // (we already have content on screen) vs a first load (error state instead).
   ServiceJobModel? _cachedJob;
 
   String _selectedTab = 'complaint'; 
@@ -200,27 +201,32 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
         body: SafeArea(
           child: BlocBuilder<JobBloc, JobState>(
             builder: (context, jobState) {
-              final isLoading = jobState is JobLoading;
-              final errorMessage =
-                  jobState is JobError ? jobState.message : null;
-
+              // Keep the last successfully loaded job on screen. Helper
+              // states (JobLoading, JobMechanicsLoaded, JobInitial, ...) do
+              // not carry the job, so without this the screen would show
+              // blank fields instead of the real job data.
               ServiceJobModel? job;
               if (jobState is JobLoaded) {
                 job = jobState.job;
               } else if (jobState is JobUpdated) {
                 job = jobState.job;
+              } else {
+                job = _cachedJob;
               }
 
-              if (isLoading && job == null) {
-                return const Center(
-                  child: CircularProgressIndicator(color: AppColors.limeAccent),
+              if (jobState is JobError && job == null) {
+                return Center(
+                  child: Text(jobState.message,
+                      style: AppTextStyles.bodySecondary),
                 );
               }
 
-              if (errorMessage != null && job == null) {
-                return Center(
-                  child: Text(errorMessage,
-                      style: AppTextStyles.bodySecondary),
+              // No job on screen yet: show the loading state instead of
+              // empty fields until the backend response arrives.
+              if (job == null) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.limeAccent),
                 );
               }
 
@@ -250,7 +256,7 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
                             child: Text('Advisor - Job Detail',
                                 style: AppTextStyles.heading3),
                           ),
-                          StatusBadge(status: _statusString(job?.status)),
+                          StatusBadge(status: _statusString(job.status)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -275,14 +281,14 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
                                           .copyWith(letterSpacing: 0.5)),
                                   const SizedBox(height: 4),
                                   Text(
-                                    job?.vehicleNumber ?? '',
+                                    job.vehicleNumber ?? '',
                                     style: AppTextStyles.heading3,
                                   ),
-                                  const SizedBox(height: 2),
+const SizedBox(height: 2),
                                   Text(
-                                      job?.serviceType ?? '',
-                                      style:
-                                          AppTextStyles.bodySecondary),
+                                    job.serviceType,
+                                    style:
+                                        AppTextStyles.bodySecondary),
                                 ],
                               ),
                             ),
@@ -320,7 +326,7 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
                                       style: AppTextStyles.caption
                                           .copyWith(letterSpacing: 0.5)),
                                   const SizedBox(height: 4),
-                                  Text(job?.customerName ?? '',
+                                  Text(job.customerName ?? '',
                                       style: AppTextStyles.heading3),
                                   const SizedBox(height: 2),
                                   Text('',
@@ -345,7 +351,7 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
 
                       // --- Status progress tracker ---
                       StatusProgressTracker(
-                          currentStatus: _statusString(job?.status)),
+                          currentStatus: _statusString(job.status)),
                       const SizedBox(height: 24),
 
                       // --- Assigned mechanic ---
@@ -370,7 +376,7 @@ class _JobDetailAdvisorScreenState extends State<JobDetailAdvisorScreen> {
                                     CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    job?.mechanicName ?? 'Unassigned',
+                                    job.mechanicName ?? 'Unassigned',
                                     style: AppTextStyles.bodyRegular
                                         .copyWith(
                                             fontWeight: FontWeight.bold),

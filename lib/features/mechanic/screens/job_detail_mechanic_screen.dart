@@ -78,10 +78,33 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
       setState(() {
         _errorMessage = state.message;
         _isStartingWork = false;
+        _isSubmittingQc = false;
       });
     } else if (state is JobUpdated) {
-      _isStartingWork = false;
-      _load();
+      // The status PATCH already returned the fresh job, so we apply it
+      // directly instead of re-fetching the job and the work/part lists.
+      // This makes the loading disappear right away and skips 3 extra API
+      // calls. A status change does not change works or parts.
+      final sentForQc =
+          _isSubmittingQc && state.job.status == ServiceJobStatus.qcPending;
+      setState(() {
+        _job = state.job;
+        _errorMessage = null;
+        _isStartingWork = false;
+        _isSubmittingQc = false;
+      });
+      if (sentForQc) {
+        // QC submission succeeded: confirm it and go back to My Jobs. The
+        // home screen reloads itself (RouteAware/didPopNext), so the job
+        // leaves the active list and the counters update immediately.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job sent for quality check'),
+            backgroundColor: AppColors.statusSuccess,
+          ),
+        );
+        Navigator.of(context).maybePop();
+      }
     }
   }
 
@@ -148,8 +171,8 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider<MechanicBloc>(
-        create: (_) => context.read<MechanicBloc>(),
+      builder: (_) => BlocProvider<MechanicBloc>.value(
+        value: context.read<MechanicBloc>(),
         child: AddServiceWorkSheet(
           jobId: widget.jobId,
           jobNumber: _job?.jobNumber ?? '',
@@ -166,8 +189,8 @@ class _JobDetailMechanicScreenState extends State<JobDetailMechanicScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider<MechanicBloc>(
-        create: (_) => context.read<MechanicBloc>(),
+      builder: (_) => BlocProvider<MechanicBloc>.value(
+        value: context.read<MechanicBloc>(),
         child: AddPartUsedSheet(
           jobId: widget.jobId,
         ),

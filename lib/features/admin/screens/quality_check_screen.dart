@@ -21,7 +21,6 @@ class QualityCheckScreen extends StatefulWidget {
 class _QualityCheckScreenState extends State<QualityCheckScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
-  bool _submittedSuccessfully = false;
 
   final Map<String, String?> _checklist = {
     'brake_check': null,
@@ -93,11 +92,18 @@ class _QualityCheckScreenState extends State<QualityCheckScreen> {
             : OverallStatusEnum.reworkRequired,
       ));
       if (!mounted) return;
-      setState(() => _submittedSuccessfully = true);
-    } catch (_) {
+
+      // Reload the job from the backend so the page shows the latest
+      // status (ready_for_bill / rework_required) after the action.
+      context.read<JobBloc>().add(JobLoadRequested(id: widget.serviceJobId));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quality check submitted')),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
       if (!mounted) return;
-      setState(() =>
-          _errorMessage = 'Could not submit quality check. Try again.');
+      setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -107,16 +113,6 @@ class _QualityCheckScreenState extends State<QualityCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_submittedSuccessfully) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Quality check submitted')),
-        );
-        Navigator.of(context).maybePop();
-      });
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -233,6 +229,13 @@ class _QualityCheckScreenState extends State<QualityCheckScreen> {
                       _InfoLine(
                         label: 'MECHANIC',
                         value: job.mechanicName ?? '',
+                      ),
+                      const SizedBox(height: 10),
+                      _InfoLine(
+                        label: 'CUSTOMER COMPLAINT',
+                        value: job.complaint.isEmpty
+                            ? 'No complaint recorded.'
+                            : job.complaint,
                       ),
                     ],
                   ),

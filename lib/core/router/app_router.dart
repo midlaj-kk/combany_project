@@ -311,6 +311,8 @@ class AppRouter {
     required String vehicleLabel,
     required String vehicleModel,
     required String customerName,
+    double initialLabourCharge = 0,
+    double initialPartsCharge = 0,
   }) {
     _push(
       context,
@@ -322,6 +324,8 @@ class AppRouter {
           vehicleLabel: vehicleLabel,
           vehicleModel: vehicleModel,
           customerName: customerName,
+          initialLabourCharge: initialLabourCharge,
+          initialPartsCharge: initialPartsCharge,
         ),
       ),
     );

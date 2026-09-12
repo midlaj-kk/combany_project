@@ -54,7 +54,7 @@ class PaymentModel {
       paymentMethod: json['payment_method'] != null
           ? PaymentMethod.fromString(json['payment_method'] as String)
           : null,
-      paidAmount: json['paid_amount'] as String?,
+      paidAmount: _amount(json['paid_amount']),
       paymentDate: json['payment_date'] as String?,
       razorpayPaymentId: json['razorpay_payment_id'] as String?,
       createdAt: json['created_at'] as String?,
@@ -62,6 +62,13 @@ class PaymentModel {
       receivedBy: json['received_by'] as int?,
       razorpayOrder: json['razorpay_order'] as int?,
     );
+  }
+
+  /// Safely converts a backend money value that may arrive as a number
+  /// (708.0) or a string ("708.00") into a String.
+  static String? _amount(dynamic value) {
+    if (value == null) return null;
+    return value.toString();
   }
 }
 

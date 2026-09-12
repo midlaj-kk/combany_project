@@ -159,7 +159,13 @@ class ErrorInterceptor extends Interceptor {
   // get the best message from the backend response.
   String _handleBadResponse(int? statusCode, dynamic data) {
     if (data is Map<String, dynamic>) {
-      // django usually sends a "detail" message for errors.
+      // the backend wraps its errors as { success, message, errors }.
+      if (data['message'] is String &&
+          (data['message'] as String).isNotEmpty) {
+        return data['message'] as String;
+      }
+
+      // django also sends a "detail" message for errors.
       if (data.containsKey('detail')) {
         return data['detail'].toString();
       }

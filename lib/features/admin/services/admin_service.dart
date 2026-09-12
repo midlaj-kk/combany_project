@@ -111,18 +111,6 @@ class AdminService {
     }
   }
 
-  Future<void> deactivateUser(int id) async {
-    try {
-      final response = await dio.patch(ApiEndpoints.userDeactivate(id));
-
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to deactivate user (status: ${response.statusCode})');
-      }
-    } on DioException catch (e) {
-      throw Exception(_getErrorMessage(e));
-    }
-  }
-
   // ── Spare Parts ──────────────────────────────────────────────────────────
 
   Future<PaginatedSparePartList> getSpareParts({String? search, int? page, int? pageSize}) async {

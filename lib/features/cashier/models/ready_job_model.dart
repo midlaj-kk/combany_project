@@ -7,6 +7,8 @@ class ReadyJobModel {
   final String? vehicleModel;
   final String? serviceType;
   final String? customerPhone;
+  final double labourCharge;
+  final double partsCharge;
 
   const ReadyJobModel({
     required this.id,
@@ -16,6 +18,8 @@ class ReadyJobModel {
     this.vehicleModel,
     this.serviceType,
     this.customerPhone,
+    this.labourCharge = 0,
+    this.partsCharge = 0,
   });
 
   factory ReadyJobModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +31,13 @@ class ReadyJobModel {
       vehicleModel: json['vehicle_model'] as String?,
       serviceType: json['service_type'] as String?,
       customerPhone: json['customer_phone'] as String?,
+      labourCharge: _toDouble(json['labour_charge']),
+      partsCharge: _toDouble(json['parts_charge']),
     );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse('$value') ?? 0;
   }
 }

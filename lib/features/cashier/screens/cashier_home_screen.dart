@@ -8,6 +8,7 @@ import 'package:auto_care_app/features/cashier/bloc/bloc.dart';
 import 'package:auto_care_app/features/cashier/bloc/event.dart';
 import 'package:auto_care_app/features/cashier/bloc/state.dart';
 import 'package:auto_care_app/features/cashier/models/bill_model.dart';
+import 'package:auto_care_app/features/cashier/models/ready_job_model.dart';
 import '../widgets/pending_payment_tile.dart';
 import '../widgets/ready_for_billing_card.dart';
 
@@ -89,8 +90,8 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> with RouteAware {
                 );
               }
 
-              List<dynamic> pendingPayments = [];
-              List<dynamic> readyForBilling = [];
+              List<BillModel> pendingPayments = [];
+              List<ReadyJobModel> readyForBilling = [];
 
               if (state is BillingCashierHomeLoaded) {
                 pendingPayments = state.bills.results
@@ -196,6 +197,8 @@ class _CashierHomeScreenState extends State<CashierHomeScreen> with RouteAware {
                                     vehicleLabel: job.vehicleNumber ?? '',
                                     vehicleModel: job.vehicleModel ?? '',
                                     customerName: job.customerName ?? '',
+                                    initialLabourCharge: job.labourCharge,
+                                    initialPartsCharge: job.partsCharge,
                                   ),
                                 );
                               },

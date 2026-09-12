@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/di/injection.dart';
@@ -28,12 +30,21 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with RouteAware {
   late final AdminBloc _adminBloc;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _adminBloc = AdminBloc(service: getIt<AdminService>())
       ..add(const AdminDashboardSummaryRequested());
+
+    // Auto-refresh the counters from the backend while this screen is open
+    // so the latest status changes (e.g. a mechanic sending a job for QC on
+    // another device) are picked up without any manual refresh.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      _adminBloc.add(const AdminDashboardRefreshRequested());
+    });
   }
 
   @override
@@ -47,6 +58,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     AppRouter.routeObserver.unsubscribe(this);
     _adminBloc.close();
     super.dispose();
@@ -58,7 +70,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void didPopNext() {
     if (!mounted) return;
-    _adminBloc.add(const AdminDashboardSummaryRequested());
+    _adminBloc.add(const AdminDashboardRefreshRequested());
     super.didPopNext();
   }
 
@@ -320,12 +332,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                   status:
                                       job['status'] ??
                                           'waiting',
-                                  onTap: () =>
+                                  onTap: () {
+                                    if (job['status'] ==
+                                        'qc_pending') {
                                       AppRouter.toQualityCheck(
-                                    context,
-                                    serviceJobId:
-                                        job['id'],
-                                  ),
+                                        context,
+                                        serviceJobId:
+                                            job['id'],
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                          context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Only jobs pending '
+                                              'quality check can be '
+                                              'opened here'),
+                                        ),
+                                      );
+                                    }
+                                  },
                                 );
                               }),
                           ],

@@ -49,10 +49,13 @@ class ReadyForBillingCard extends StatelessWidget {
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
+            height: 40,
             child: ElevatedButton(
               onPressed: onCreateBill,
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(40),
+                minimumSize: const Size(0, 40),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: const Text('Create Bill', style: TextStyle(fontSize: 13)),
             ),

@@ -16,13 +16,29 @@ class DeliveryReadyScreen extends StatefulWidget {
   State<DeliveryReadyScreen> createState() => _DeliveryReadyScreenState();
 }
 
-class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> {
+class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> with RouteAware {
   final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     context.read<BillingBloc>().add(const BillingReadyDeliveriesLoadRequested());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    context.read<BillingBloc>().add(const BillingReadyDeliveriesLoadRequested());
+    super.didPopNext();
   }
 
   List<dynamic> _filteredList(List<dynamic> vehicles) {
@@ -37,6 +53,7 @@ class _DeliveryReadyScreenState extends State<DeliveryReadyScreen> {
 
   @override
   void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
     _searchController.dispose();
     super.dispose();
   }

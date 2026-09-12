@@ -16,7 +16,8 @@ class MechanicHomeScreen extends StatefulWidget {
   State<MechanicHomeScreen> createState() => _MechanicHomeScreenState();
 }
 
-class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
+class _MechanicHomeScreenState extends State<MechanicHomeScreen>
+    with RouteAware {
   static const _tabs = [
     ('all', 'All'),
     ('waiting', 'Waiting'),
@@ -37,25 +38,63 @@ class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
   }
 
   void _loadJobs() {
-    context.read<JobBloc>().add(const JobsLoadRequested());
+    context.read<JobBloc>().add(const JobsLoadRequested(pageSize: 100));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppRouter.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppRouter.routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  /// Reload the job list whenever this screen becomes visible again (e.g.
+  /// after returning from the Job Detail screen), so the counters and the
+  /// active jobs list always reflect the latest server data without needing
+  /// a manual pull-to-refresh.
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    _loadJobs();
+    super.didPopNext();
   }
 
   void _onStateChanged(BuildContext context, JobState state) {
     if (state is JobsLoaded) {
       final allJobs = state.jobs.results;
-      final assigned = allJobs
+      // Jobs the mechanic still needs to work on. A job that was sent for
+      // quality check is no longer "assigned to me" and leaves the list.
+      final activeJobs = allJobs
           .where((j) =>
-              j.status != ServiceJobStatus.delivered &&
-              j.status != ServiceJobStatus.cancelled)
-          .length;
+              j.status == ServiceJobStatus.waiting ||
+              j.status == ServiceJobStatus.inProgress ||
+              j.status == ServiceJobStatus.waitingForParts ||
+              j.status == ServiceJobStatus.reworkRequired)
+          .toList();
+
+      // Same completed-job definition as the Profile screen, so both
+      // screens always agree on what counts as "completed".
+      const completedStatuses = [
+        ServiceJobStatus.qcPending,
+        ServiceJobStatus.readyForBill,
+        ServiceJobStatus.readyForDelivery,
+        ServiceJobStatus.delivered,
+      ];
 
       final today = DateTime.now();
       final completedToday = allJobs.where((j) {
-        if (j.status != ServiceJobStatus.qcPending &&
-            j.status != ServiceJobStatus.readyForBill) {
-          return false;
-        }
-        final updated = DateTime.tryParse(j.updatedAt ?? '');
+        if (!completedStatuses.contains(j.status)) return false;
+        // The backend sends UTC time, so convert it to the device timezone
+        // before comparing the date.
+        final updated = DateTime.tryParse(j.updatedAt ?? '')?.toLocal();
         return updated != null &&
             updated.year == today.year &&
             updated.month == today.month &&
@@ -63,16 +102,16 @@ class _MechanicHomeScreenState extends State<MechanicHomeScreen> {
       }).length;
 
       setState(() {
-        _assignedCount = assigned;
+        _assignedCount = activeJobs.length;
         _completedTodayCount = completedToday;
         _jobs = _selectedFilter == 'all'
-            ? allJobs
+            ? activeJobs
             : _selectedFilter == 'rework'
-                ? allJobs
+                ? activeJobs
                     .where(
                         (j) => j.status == ServiceJobStatus.reworkRequired)
                     .toList()
-                : allJobs
+                : activeJobs
                     .where(
                         (j) => (j.status?.toJsonString() ?? '') == _selectedFilter)
                     .toList();

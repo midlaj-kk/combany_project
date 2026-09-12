@@ -205,15 +205,6 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                                   email: staff.email,
                                   phone: staff.phone,
                                   isActive: staff.isActive ?? true,
-                                  onToggleActive: () => context
-                                      .read<AdminBloc>()
-                                      .add(
-                                        (staff.isActive ?? true)
-                                            ? AdminUserDeactivateRequested(
-                                                id: staff.id)
-                                            : AdminUserActivateRequested(
-                                                id: staff.id),
-                                      ),
                                 );
                               },
                             );

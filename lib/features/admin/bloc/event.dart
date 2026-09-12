@@ -25,11 +25,6 @@ class AdminUserActivateRequested extends AdminEvent {
   const AdminUserActivateRequested({required this.id});
 }
 
-class AdminUserDeactivateRequested extends AdminEvent {
-  final int id;
-  const AdminUserDeactivateRequested({required this.id});
-}
-
 class AdminSparePartsLoadRequested extends AdminEvent {
   final String? search;
   final int? page;
@@ -60,6 +55,13 @@ class AdminStockHistoryRequested extends AdminEvent {
 
 class AdminDashboardSummaryRequested extends AdminEvent {
   const AdminDashboardSummaryRequested();
+}
+
+/// Silent re-fetch of the dashboard summary. Used for the auto-refresh timer
+/// and for refreshing after returning to the dashboard, so the counts update
+/// without flashing the full-screen loading spinner.
+class AdminDashboardRefreshRequested extends AdminEvent {
+  const AdminDashboardRefreshRequested();
 }
 
 class AdminMonthlyRevenueRequested extends AdminEvent {

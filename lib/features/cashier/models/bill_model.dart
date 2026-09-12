@@ -58,12 +58,12 @@ class BillModel {
       id: json['id'] as int,
       jobNumber: json['job_number'] as String?,
       invoiceNumber: json['invoice_number'] as String?,
-      labourCharge: json['labour_charge'] as String?,
-      partsCharge: json['parts_charge'] as String?,
-      tax: json['tax'] as String?,
-      discount: json['discount'] as String?,
-      totalAmount: json['total_amount'] as String?,
-      amountPaid: json['amount_paid'] as String?,
+      labourCharge: _amount(json['labour_charge']),
+      partsCharge: _amount(json['parts_charge']),
+      tax: _amount(json['tax']),
+      discount: _amount(json['discount']),
+      totalAmount: _amount(json['total_amount']),
+      amountPaid: _amount(json['amount_paid']),
       paymentStatus: json['payment_status'] != null
           ? PaymentStatusEnum.fromString(json['payment_status'] as String)
           : null,
@@ -74,6 +74,14 @@ class BillModel {
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
     );
+  }
+
+  /// Backend money fields may arrive either as strings ("708.00") or as
+  /// numbers (708.0). This safely converts either to its string form so the
+  /// rest of the app can keep parsing them with double.tryParse.
+  static String? _amount(dynamic value) {
+    if (value == null) return null;
+    return value.toString();
   }
 }
 

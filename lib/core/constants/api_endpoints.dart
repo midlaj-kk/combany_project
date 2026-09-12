@@ -19,7 +19,6 @@ class ApiEndpoints {
   static const String users = '$_v1/users/';
   static String userById(int id) => '$_v1/users/$id/';
   static String userActivate(int id) => '$_v1/users/$id/activate/';
-  static String userDeactivate(int id) => '$_v1/users/$id/deactivate/';
 
   // Customers
   static const String customers = '$_v1/customers/';

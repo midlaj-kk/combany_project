@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../services/auth_service.dart';
@@ -27,8 +28,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(const AuthError(message: 'Login failed. Please check your credentials.'));
       }
     } catch (e) {
-      emit(AuthError(message: e.toString()));
+      emit(AuthError(message: _loginMessage(e)));
     }
+  }
+
+  /// Turns a login failure into a message the user can understand. The
+  /// backend/Dio already gives us a real reason (wrong password, timeout, no
+  /// internet, server error...); we just surface it instead of always showing
+  /// a generic "invalid credentials" message.
+  String _loginMessage(Object error) {
+    // The Dio error interceptor converts every failure into a readable
+    // message and stores it in the DioException's [error] field.
+    if (error is DioException) {
+      final real = error.error;
+      if (real is String && real.isNotEmpty) return real;
+      return error.message ?? 'Login failed. Please check your credentials.';
+    }
+    return error.toString();
   }
 
   Future<void> _onLogout(AuthLogoutRequested event, Emitter<AuthState> emit) async {

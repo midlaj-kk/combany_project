@@ -50,6 +50,12 @@ class AuthService {
 
       await _persistSessionUser(user);
       return user;
+    } on DioException {
+      // Let the Dio interceptor's real message reach the UI instead of this
+      // generic "invalid credentials" fallback (e.g. a network timeout or a
+      // server error was the actual cause, not bad credentials).
+      await clearLocalSession();
+      rethrow;
     } catch (_) {
       await clearLocalSession();
       return null;

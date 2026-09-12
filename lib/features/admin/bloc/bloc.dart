@@ -12,13 +12,13 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<AdminUserCreateRequested>(_onCreateUser);
     on<AdminUserDeleteRequested>(_onDeleteUser);
     on<AdminUserActivateRequested>(_onActivateUser);
-    on<AdminUserDeactivateRequested>(_onDeactivateUser);
     on<AdminSparePartsLoadRequested>(_onLoadSpareParts);
     on<AdminSparePartLoadRequested>(_onLoadSparePart);
     on<AdminAddStockRequested>(_onAddStock);
     on<AdminReduceStockRequested>(_onReduceStock);
     on<AdminStockHistoryRequested>(_onStockHistory);
     on<AdminDashboardSummaryRequested>(_onDashboardSummary);
+    on<AdminDashboardRefreshRequested>(_onDashboardRefresh);
     on<AdminMonthlyRevenueRequested>(_onMonthlyRevenue);
     on<AdminCompletedServicesRequested>(_onCompletedServices);
     on<AdminMechanicProductivityRequested>(_onMechanicProductivity);
@@ -63,16 +63,6 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     try {
       await service.activateUser(event.id);
       emit(const AdminUserActionSuccess(message: 'User activated successfully'));
-    } catch (e) {
-      emit(AdminError(message: e.toString()));
-    }
-  }
-
-  Future<void> _onDeactivateUser(AdminUserDeactivateRequested event, Emitter<AdminState> emit) async {
-    emit(const AdminLoading());
-    try {
-      await service.deactivateUser(event.id);
-      emit(const AdminUserActionSuccess(message: 'User deactivated successfully'));
     } catch (e) {
       emit(AdminError(message: e.toString()));
     }
@@ -135,6 +125,17 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       emit(AdminDashboardLoaded(summary: summary));
     } catch (e) {
       emit(AdminError(message: e.toString()));
+    }
+  }
+
+  Future<void> _onDashboardRefresh(AdminDashboardRefreshRequested event, Emitter<AdminState> emit) async {
+    // Silent refresh: never emit Loading so the screen does not flicker.
+    // On failure we keep the last known values; the next refresh retries.
+    try {
+      final summary = await service.getDashboardSummary();
+      emit(AdminDashboardLoaded(summary: summary));
+    } catch (_) {
+      // keep showing the latest successfully loaded summary
     }
   }
 

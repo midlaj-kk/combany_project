@@ -78,7 +78,9 @@ class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
     for (final job in jobs) {
       if (job.assignedMechanic != mechanicId) continue;
       if (!_completedStatuses.contains(job.status)) continue;
-      final finished = DateTime.tryParse(job.updatedAt ?? '');
+      // The backend sends UTC time, so convert it to the device timezone
+      // before comparing the date.
+      final finished = DateTime.tryParse(job.updatedAt ?? '')?.toLocal();
       if (finished == null) continue;
       if (finished.year == now.year && finished.month == now.month) count++;
     }
@@ -108,7 +110,7 @@ class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<JobBloc>()..add(const JobsLoadRequested()),
+      create: (_) => getIt<JobBloc>()..add(const JobsLoadRequested(pageSize: 100)),
       child: BlocConsumer<AuthBloc, AuthState>(
         listener: _onStateChanged,
         listenWhen: (_, current) =>
@@ -279,12 +281,7 @@ class _MechanicProfileScreenState extends State<MechanicProfileScreen> {
                               icon: Icons.logout,
                               label: 'Logout',
                               isDestructive: true,
-                              onTap: () async {
-                                await _logout();
-                                if (context.mounted) {
-                                  AppRouter.toLogin(context, replace: true);
-                                }
-                              },
+                              onTap: _logout,
                             ),
                           ],
                         ),

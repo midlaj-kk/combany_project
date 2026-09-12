@@ -126,7 +126,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen>
                         ],
                       );
                     }
-                    List<dynamic> allBills = [];
+                    List<BillModel> allBills = [];
                     if (state is BillingBillsLoaded) {
                       allBills = state.bills.results;
                     }
